@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface AdminHeaderProps {
   title: string;
@@ -37,6 +38,9 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
             className="w-64 pl-9"
           />
         </div>
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Notifications */}
         <Button variant="ghost" size="sm" className="relative">
