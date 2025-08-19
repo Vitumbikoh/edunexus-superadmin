@@ -12,6 +12,7 @@ import {
   Activity, 
   HardDrive, 
   Cpu, 
+  Monitor,
   AlertTriangle, 
   CheckCircle, 
   Clock,
@@ -100,7 +101,7 @@ const System = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-2">
-                        <HardDrive className="h-4 w-4" />
+                        <Monitor className="h-4 w-4" />
                         <span>Memory Usage</span>
                       </div>
                       <span>67%</span>
