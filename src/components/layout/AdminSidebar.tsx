@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Link, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
   School, 
@@ -23,8 +24,7 @@ const sidebarItems = [
   {
     label: "Dashboard",
     icon: LayoutDashboard,
-    href: "/",
-    active: true
+    href: "/"
   },
   {
     label: "Schools",
@@ -65,6 +65,7 @@ const sidebarItems = [
 
 export function AdminSidebar({ className }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
 
   return (
     <div className={cn(
@@ -104,18 +105,20 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
         <nav className="space-y-2">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.href;
             return (
-              <Button
-                key={item.href}
-                variant={item.active ? "default" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3 text-left",
-                  collapsed && "justify-center px-2"
-                )}
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </Button>
+              <Link key={item.href} to={item.href}>
+                <Button
+                  variant={isActive ? "default" : "ghost"}
+                  className={cn(
+                    "w-full justify-start gap-3 text-left",
+                    collapsed && "justify-center px-2"
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Button>
+              </Link>
             );
           })}
         </nav>
