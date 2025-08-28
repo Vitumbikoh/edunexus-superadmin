@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useSchools } from "@/hooks/useSchools";
 import { activateSchool, suspendSchool } from "@/lib/utils";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const getStatusBadge = (status?: string) => {
   switch (status) {
@@ -27,6 +28,7 @@ const getStatusBadge = (status?: string) => {
 export function SchoolsOverview() {
   const { data: schools = [], isLoading, refetch } = useSchools();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const doSuspend = async (id: string) => {
     if (!confirm('Suspend this school?')) return;
@@ -62,7 +64,7 @@ export function SchoolsOverview() {
           <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCcw className="h-3 w-3 mr-1" /> Refresh
           </Button>
-          <Button size="sm">View All Schools</Button>
+          <Button size="sm" onClick={() => navigate('/schools')}>View All Schools</Button>
         </div>
       </CardHeader>
       <CardContent>

@@ -1,59 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-
-interface ActivityItem {
-  id: string;
-  action: string;
-  user: string;
-  school?: string;
-  timestamp: Date;
-  type: "create" | "update" | "delete" | "login" | "system";
-}
-
-const recentActivities: ActivityItem[] = [
-  {
-    id: "1",
-    action: "Created new school",
-    user: "John Smith",
-    school: "Riverside High",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15),
-    type: "create"
-  },
-  {
-    id: "2",
-    action: "Updated user permissions",
-    user: "Sarah Wilson",
-    school: "Central Academy",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    type: "update"
-  },
-  {
-    id: "3",
-    action: "School suspended",
-    user: "Mike Johnson",
-    school: "Oak Valley School",
-    timestamp: new Date(Date.now() - 1000 * 60 * 45),
-    type: "system"
-  },
-  {
-    id: "4",
-    action: "Admin login detected",
-    user: "Emily Davis",
-    school: "Pine Grove Elementary",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60),
-    type: "login"
-  },
-  {
-    id: "5",
-    action: "Bulk user import completed",
-    user: "David Brown",
-    school: "Metro High School",
-    timestamp: new Date(Date.now() - 1000 * 60 * 90),
-    type: "system"
-  }
-];
+import { useRecentActivity, type ActivityItem } from "@/hooks/useRecentActivity";
 
 const getActionBadgeVariant = (type: ActivityItem["type"]) => {
   switch (type) {
@@ -73,40 +24,65 @@ const getActionBadgeVariant = (type: ActivityItem["type"]) => {
 };
 
 export function RecentActivity() {
+  const { data: activities = [], isLoading, error } = useRecentActivity();
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Recent Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-80">
+        {isLoading ? (
           <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3">
-                <Badge 
-                  variant="secondary" 
-                  className={getActionBadgeVariant(activity.type)}
-                >
-                  {activity.type}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{activity.action}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>by {activity.user}</span>
-                    {activity.school && (
-                      <>
-                        <span>•</span>
-                        <span>{activity.school}</span>
-                      </>
-                    )}
-                    <span>•</span>
-                    <span>{formatDistanceToNow(activity.timestamp, { addSuffix: true })}</span>
-                  </div>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <Skeleton className="h-6 w-16" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
                 </div>
               </div>
             ))}
           </div>
-        </ScrollArea>
+        ) : error ? (
+          <div className="py-8 text-center text-muted-foreground">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+            <p>Failed to load recent activity</p>
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">
+            <p>No recent activity found</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-80">
+            <div className="space-y-4">
+              {activities.map((activity) => (
+                <div key={activity.id} className="flex items-start gap-3">
+                  <Badge 
+                    variant="secondary" 
+                    className={getActionBadgeVariant(activity.type)}
+                  >
+                    {activity.type}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{activity.action}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>by {activity.user}</span>
+                      {activity.school && (
+                        <>
+                          <span>•</span>
+                          <span>{activity.school}</span>
+                        </>
+                      )}
+                      <span>•</span>
+                      <span>{formatDistanceToNow(activity.timestamp, { addSuffix: true })}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
       </CardContent>
     </Card>
   );

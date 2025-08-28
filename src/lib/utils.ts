@@ -111,3 +111,8 @@ export async function verifyToken() {
 export async function validateToken(token: string) {
   return request('/auth/validate-token', { method: 'POST', body: JSON.stringify({ token }) });
 }
+
+// Notifications API endpoints
+export async function getSchoolCredentials() {
+  return request('/schools/credentials/all', { method: 'GET' });
+}

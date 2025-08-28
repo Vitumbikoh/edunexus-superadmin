@@ -13,6 +13,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface AdminHeaderProps {
   title: string;
@@ -22,10 +23,17 @@ interface AdminHeaderProps {
 export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { data: notifications = [] } = useNotifications();
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleNotificationsClick = () => {
+    navigate('/notifications');
   };
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
@@ -52,11 +60,18 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
         <ThemeToggle />
 
         {/* Notifications */}
-        <Button variant="ghost" size="sm" className="relative">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="relative"
+          onClick={handleNotificationsClick}
+        >
           <Bell className="h-4 w-4" />
-          <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
-            3
-          </Badge>
+          {unreadCount > 0 && (
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          )}
         </Button>
 
         {/* Admin Menu */}
