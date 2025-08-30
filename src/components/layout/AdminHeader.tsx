@@ -82,7 +82,7 @@ export function AdminHeader({ title, subtitle }: AdminHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>{user?.email || 'Super Admin'}</DropdownMenuLabel>
+            <DropdownMenuLabel>{user?.username || 'Super Admin'}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />

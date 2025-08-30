@@ -98,7 +98,7 @@ export async function activateSchool(id: string) {
 }
 
 // Auth API endpoints
-export async function login(credentials: { email: string; password: string }) {
+export async function login(credentials: { username: string; password: string }) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) });
 }
 
