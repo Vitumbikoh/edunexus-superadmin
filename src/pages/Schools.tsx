@@ -225,13 +225,26 @@ const Schools = () => {
     try {
       const response = await createSchoolAPI(newSchool);
       
-      toast({
-        title: "School Created",
-        description: `School created successfully. Admin credentials:
-        Username: ${response.adminCredentials.username}
-        Email: ${response.adminCredentials.email}
-        Password: ${response.adminCredentials.password}`,
-      });
+      // Log the response for debugging
+      console.log('Create school response:', response);
+      
+      // Check if adminCredentials exists in the response
+      if (response && response.adminCredentials) {
+        toast({
+          title: "School Created",
+          description: `School created successfully. Admin credentials:
+          Username: ${response.adminCredentials.username}
+          Email: ${response.adminCredentials.email}
+          Password: ${response.adminCredentials.password}`,
+        });
+      } else {
+        // Fallback if adminCredentials is not in the expected format
+        toast({
+          title: "School Created",
+          description: "School created successfully.",
+        });
+        console.warn('Admin credentials not found in response:', response);
+      }
 
       setShowAdd(false);
       setNewSchool({ name: "", code: "" });
