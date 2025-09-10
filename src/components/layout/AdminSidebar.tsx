@@ -13,7 +13,8 @@ import {
   Shield,
   Database,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -40,6 +41,11 @@ const sidebarItems = [
     label: "Analytics",
     icon: BarChart3,
     href: "/analytics"
+  },
+  {
+    label: "Finance",
+    icon: Wallet,
+    href: "/finance/reports"
   },
   {
     label: "Audit Logs",

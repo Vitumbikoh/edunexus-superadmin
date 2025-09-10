@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Schools from "./pages/Schools";
 import Users from "./pages/Users";
 import Analytics from "./pages/Analytics";
+import FinancialReports from "./pages/FinancialReports";
 import AuditLogs from "./pages/AuditLogs";
 import Security from "./pages/Security";
 import System from "./pages/System";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/schools" element={<ProtectedRoute><Schools /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/finance/reports" element={<ProtectedRoute><FinancialReports /></ProtectedRoute>} />
             <Route path="/audit" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
             <Route path="/system" element={<ProtectedRoute><System /></ProtectedRoute>} />
