@@ -9,8 +9,6 @@ import {
   Users, 
   FileText, 
   Settings, 
-  BarChart3,
-  Shield,
   Database,
   ChevronLeft,
   ChevronRight,
@@ -38,24 +36,9 @@ const sidebarItems = [
     href: "/users"
   },
   {
-    label: "Analytics",
-    icon: BarChart3,
-    href: "/analytics"
-  },
-  {
     label: "Finance",
     icon: Wallet,
     href: "/finance/billing"
-  },
-  {
-    label: "Audit Logs",
-    icon: FileText,
-    href: "/audit"
-  },
-  {
-    label: "Security",
-    icon: Shield,
-    href: "/security"
   },
   {
     label: "System",
