@@ -45,7 +45,7 @@ const sidebarItems = [
   {
     label: "Finance",
     icon: Wallet,
-    href: "/finance/reports"
+    href: "/finance/billing"
   },
   {
     label: "Audit Logs",
