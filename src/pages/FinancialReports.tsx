@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, RefreshCcw, TrendingUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { formatCurrency, getDefaultCurrency } from "@/lib/currency";
 
 // Placeholder financial data (to be wired to API later)
 const mockRevenue = [
@@ -26,7 +27,7 @@ export default function FinancialReports() {
               <CardDescription className="text-xs">All income streams</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$312,450</div>
+              <div className="text-2xl font-bold">{formatCurrency(312450, getDefaultCurrency())}</div>
               <p className="text-xs text-green-600 flex items-center"><TrendingUp className="h-3 w-3 mr-1" />+8.4% vs last year</p>
             </CardContent>
           </Card>
@@ -36,7 +37,7 @@ export default function FinancialReports() {
               <CardDescription className="text-xs">Pending payments</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$27,300</div>
+              <div className="text-2xl font-bold">{formatCurrency(27300, getDefaultCurrency())}</div>
               <p className="text-xs text-muted-foreground">Across 143 invoices</p>
             </CardContent>
           </Card>
