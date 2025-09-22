@@ -115,10 +115,10 @@ export default function FinancialReports() {
                     {mockRevenue.map(r => (
                       <TableRow key={r.month}>
                         <TableCell className="font-medium">{r.month}</TableCell>
-                        <TableCell className="text-right">${r.tuition.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${r.fees.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${r.other.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-medium">${(r.tuition + r.fees + r.other).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(r.tuition, getDefaultCurrency())}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(r.fees, getDefaultCurrency())}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(r.other, getDefaultCurrency())}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(r.tuition + r.fees + r.other, getDefaultCurrency())}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
