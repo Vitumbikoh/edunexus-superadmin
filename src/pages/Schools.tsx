@@ -5,16 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, MoreVertical, Users, BookOpen, TrendingUp, Eye, Copy, RotateCcw } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Plus, MoreVertical, Users, BookOpen, TrendingUp, Eye, Copy, RotateCcw, CreditCard, AlertTriangle, Ban, School, Calendar, GraduationCap, CheckCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { API_BASE } from "@/lib/utils";
+import { schoolBillingService, type BillingStatus, type SchoolWithBilling } from "@/services/schoolBillingService";
 
 interface School {
   id: string;
@@ -72,10 +78,11 @@ interface CreateSchoolResponse {
 }
 
 const Schools = () => {
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolWithBilling[]>([]);
   const [credentials, setCredentials] = useState<SchoolAdminCredentials[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingBilling, setLoadingBilling] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newSchool, setNewSchool] = useState<CreateSchoolRequest>({ name: "", code: "" });
   const [editSchool, setEditSchool] = useState<School | null>(null);
@@ -83,6 +90,10 @@ const Schools = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [showCredentials, setShowCredentials] = useState(false);
+  const [showDeactivatePopup, setShowDeactivatePopup] = useState(false);
+  const [deactivateSchoolData, setDeactivateSchoolData] = useState<{id: string, name: string} | null>(null);
+  const [deactivateReason, setDeactivateReason] = useState("");
+  const [deactivateDate, setDeactivateDate] = useState("");
   const { toast } = useToast();
 
   // API Helper Functions
@@ -116,18 +127,22 @@ const Schools = () => {
 
       const data = await apiCall(`/schools?${params}`);
       
+      let schoolsList: School[] = [];
       // Handle both array response and structured response
       if (Array.isArray(data)) {
-        setSchools(data);
+        schoolsList = data;
         setTotal(data.length);
         setCurrentPage(1);
         setTotalPages(1);
       } else {
-        setSchools(data.schools || data.data || []);
+        schoolsList = data.schools || data.data || [];
         setTotal(data.total || data.count || 0);
         setCurrentPage(data.page || 1);
         setTotalPages(Math.ceil((data.total || data.count || 0) / (data.limit || 10)));
       }
+
+      // Fetch billing status for all schools
+      await fetchBillingStatuses(schoolsList);
     } catch (err: any) {
       console.error('Failed to fetch schools:', err);
       toast({
@@ -138,6 +153,35 @@ const Schools = () => {
       setSchools([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBillingStatuses = async (schoolsList: School[]) => {
+    if (schoolsList.length === 0) {
+      setSchools([]);
+      return;
+    }
+
+    setLoadingBilling(true);
+    try {
+      const schoolIds = schoolsList.map(school => school.id);
+      const billingStatuses = await schoolBillingService.getBillingStatusForMultipleSchools(schoolIds);
+      
+      const schoolsWithBilling: SchoolWithBilling[] = schoolsList.map(school => {
+        const billingStatus = billingStatuses.find(bs => bs.schoolId === school.id);
+        return {
+          ...school,
+          billingStatus
+        };
+      });
+
+      setSchools(schoolsWithBilling);
+    } catch (err: any) {
+      console.error('Failed to fetch billing statuses:', err);
+      // Still set schools without billing data if billing fetch fails
+      setSchools(schoolsList.map(school => ({ ...school, billingStatus: undefined })));
+    } finally {
+      setLoadingBilling(false);
     }
   };
 
@@ -347,6 +391,121 @@ const Schools = () => {
     }
   };
 
+  const handleDeactivateDueToBilling = async (id: string, schoolName: string) => {
+    if (!confirm(`Are you sure you want to deactivate "${schoolName}" due to non-payment? Users from this school will not be able to log in.`)) return;
+
+    setLoading(true);
+    try {
+      await schoolBillingService.deactivateSchoolDueToBilling(id);
+      toast({
+        title: "School Deactivated",
+        description: `${schoolName} has been deactivated due to payment issues. Users cannot log in until payment is resolved.`,
+        variant: "destructive",
+      });
+      await fetchSchools(search, currentPage);
+    } catch (err: any) {
+      console.error('Deactivate due to billing failed:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'Failed to deactivate school',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivateWithReason = async () => {
+    if (!deactivateSchoolData || !deactivateReason.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide a reason for deactivation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await schoolBillingService.deactivateSchoolDueToBilling(deactivateSchoolData.id);
+      
+      // TODO: If you have an endpoint to save deactivation reasons, call it here
+      // await apiCall(`/schools/${deactivateSchoolData.id}/deactivation-log`, {
+      //   method: 'POST',
+      //   body: JSON.stringify({
+      //     reason: deactivateReason,
+      //     deactivationDate: deactivateDate,
+      //   }),
+      // });
+
+      toast({
+        title: "School Deactivated",
+        description: `${deactivateSchoolData.name} has been deactivated on ${deactivateDate}. Reason: ${deactivateReason}`,
+        variant: "destructive",
+      });
+      
+      setShowDeactivatePopup(false);
+      setDeactivateSchoolData(null);
+      setDeactivateReason("");
+      setDeactivateDate("");
+      await fetchSchools(search, currentPage);
+    } catch (err: any) {
+      console.error('Deactivate with reason failed:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'Failed to deactivate school',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkAsPaid = async (schoolId: string, schoolName: string) => {
+    if (!confirm(`Are you sure you want to mark all outstanding invoices for "${schoolName}" as paid?`)) return;
+
+    setLoading(true);
+    try {
+      // Get all invoices for the school
+      const invoices = await schoolBillingService.getInvoicesForSchool(schoolId);
+      
+      // Find unpaid invoices
+      const unpaidInvoices = invoices.filter((invoice: any) => 
+        invoice.status !== 'paid' && invoice.status !== 'cancelled'
+      );
+
+      if (unpaidInvoices.length === 0) {
+        toast({
+          title: "No Outstanding Invoices",
+          description: `${schoolName} has no outstanding invoices to mark as paid.`,
+        });
+        return;
+      }
+
+      // Mark each unpaid invoice as paid
+      for (const invoice of unpaidInvoices) {
+        await schoolBillingService.markInvoiceAsPaid(invoice.id, invoice.totalAmount);
+      }
+
+      toast({
+        title: "Invoices Marked as Paid",
+        description: `Successfully marked ${unpaidInvoices.length} invoice(s) as paid for ${schoolName}.`,
+      });
+
+      // Refresh billing data
+      await fetchSchools(search, currentPage);
+    } catch (err: any) {
+      console.error('Mark as paid failed:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'Failed to mark invoices as paid',
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetPassword = async (schoolId: string) => {
     if (!confirm('Are you sure you want to reset the admin password for this school?')) return;
 
@@ -392,10 +551,29 @@ const Schools = () => {
   const activeSchools = schools.filter(s => ["Active", "ACTIVE"].includes(s.status)).length;
   const totalStudents = schools.reduce((sum, school) => sum + (school.students || 0), 0);
   const totalTeachers = schools.reduce((sum, school) => sum + (school.teachers || 0), 0);
+  
+  // Calculate billing statistics
+  const schoolsWithOverdueBilling = schools.filter(s => s.billingStatus?.status === 'overdue');
+  const schoolsWithPartialPayment = schools.filter(s => s.billingStatus?.status === 'partial');
+  const totalOutstandingAmount = schools.reduce((sum, school) => {
+    return sum + (school.billingStatus?.outstandingAmount || 0);
+  }, 0);
 
   return (
     <AdminLayout title="Schools" subtitle="Manage all schools in the system">
       <div className="space-y-6">
+        {/* Payment Alerts */}
+        {schoolsWithOverdueBilling.length > 0 && (
+          <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              <strong>{schoolsWithOverdueBilling.length} school{schoolsWithOverdueBilling.length > 1 ? 's have' : ' has'} overdue payments.</strong>
+              {' '}Total outstanding: {schoolBillingService.formatCurrency(totalOutstandingAmount, 'MWK')}
+              {' '}Consider deactivating schools with overdue payments to prevent service misuse.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
@@ -448,6 +626,21 @@ const Schools = () => {
               <p className="text-xs text-muted-foreground">Active educators</p>
             </CardContent>
           </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Billing Status</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {loading || loadingBilling ? <Skeleton className="h-8 w-16" /> : schoolsWithOverdueBilling.length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Overdue payments ({schoolsWithPartialPayment.length} partial)
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Schools Management */}
@@ -469,10 +662,45 @@ const Schools = () => {
                   {showCredentials ? "View Schools" : "View Credentials"}
                 </Button>
                 {!showCredentials && (
-                  <Button onClick={() => setShowAdd(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add School
-                  </Button>
+                  <>
+                    <Button onClick={() => setShowAdd(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add School
+                    </Button>
+                    
+                    {schoolsWithOverdueBilling.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          const overdueSchools = schools.filter(school => 
+                            school.billingStatus?.status === 'overdue' || 
+                            school.billingStatus?.status === 'partial' ||
+                            school.billingStatus?.status === 'issued'
+                          );
+                          
+                          if (overdueSchools.length === 0) {
+                            toast({
+                              title: "No Outstanding Invoices",
+                              description: "No schools have outstanding invoices to mark as paid.",
+                            });
+                            return;
+                          }
+                          
+                          if (confirm(`Mark all outstanding invoices as paid for ${overdueSchools.length} school(s)?`)) {
+                            Promise.all(
+                              overdueSchools.map(school => 
+                                handleMarkAsPaid(school.id, school.name)
+                              )
+                            );
+                          }
+                        }}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Mark All as Paid ({schoolsWithOverdueBilling.length})
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -571,6 +799,7 @@ const Schools = () => {
                           <TableHead>School Name</TableHead>
                           <TableHead>Code</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Billing Status</TableHead>
                           <TableHead>Students</TableHead>
                           <TableHead>Teachers</TableHead>
                           <TableHead>Created</TableHead>
@@ -667,40 +896,120 @@ const Schools = () => {
                         </TableRow>
                       ))
                     ) : (
-                      schools.map((school) => (
-                        <TableRow key={school.id}>
-                          <TableCell className="font-medium">{school.name}</TableCell>
-                          <TableCell className="font-mono text-sm">{school.code}</TableCell>
-                          <TableCell>
-                            <Badge variant={["Active", "ACTIVE"].includes(school.status) ? "default" : "destructive"}>
-                              {school.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{school.students?.toLocaleString() ?? "-"}</TableCell>
-                          <TableCell>{school.teachers ?? "-"}</TableCell>
-                          <TableCell>{new Date(school.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setEditSchool(school)}>
-                                  Edit School
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => ["Active", "ACTIVE"].includes(school.status) ? handleSuspend(school.id) : handleActivate(school.id)} 
-                                  className={["Active", "ACTIVE"].includes(school.status) ? "text-destructive" : "text-green-600"}
-                                >
-                                  {["Active", "ACTIVE"].includes(school.status) ? "Suspend" : "Activate"}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      schools.map((school) => {
+                        const isActive = ["Active", "ACTIVE"].includes(school.status);
+                        const billingStatus = school.billingStatus;
+                        const hasOverdueBilling = billingStatus?.status === 'overdue';
+                        const hasOutstandingAmount = billingStatus && billingStatus.outstandingAmount > 0;
+                        
+                        return (
+                          <TableRow key={school.id} className={hasOverdueBilling ? "bg-red-50 dark:bg-red-900/10" : ""}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {school.name}
+                                {hasOverdueBilling && (
+                                  <div title="Overdue payment">
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{school.code}</TableCell>
+                            <TableCell>
+                              <Badge variant={isActive ? "default" : "destructive"}>
+                                {school.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {loadingBilling ? (
+                                <Skeleton className="h-6 w-20" />
+                              ) : billingStatus ? (
+                                <div className="space-y-1">
+                                  <Badge variant={schoolBillingService.getBillingStatusBadgeVariant(billingStatus.status)}>
+                                    {schoolBillingService.getBillingStatusLabel(billingStatus.status)}
+                                  </Badge>
+                                  {hasOutstandingAmount && (
+                                    <div className="text-xs text-red-600">
+                                      Outstanding: {schoolBillingService.formatCurrency(billingStatus.outstandingAmount, billingStatus.currency)}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <Badge variant="secondary">No Data</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{school.students?.toLocaleString() ?? "-"}</TableCell>
+                            <TableCell>{school.teachers ?? "-"}</TableCell>
+                            <TableCell>{new Date(school.createdAt).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setEditSchool(school)}>
+                                    Edit School
+                                  </DropdownMenuItem>
+                                  
+                                  {billingStatus && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      
+                                      {/* Show mark as paid for schools with outstanding payments */}
+                                      {(billingStatus.status === 'overdue' || billingStatus.status === 'partial' || billingStatus.status === 'issued') && billingStatus.outstandingAmount > 0 && (
+                                        <DropdownMenuItem 
+                                          onClick={() => handleMarkAsPaid(school.id, school.name)}
+                                          className="text-green-600"
+                                        >
+                                          <CheckCircle className="mr-2 h-4 w-4" />
+                                          Mark as Paid
+                                        </DropdownMenuItem>
+                                      )}
+
+                                      {/* Deactivate button */}
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          setDeactivateSchoolData({id: school.id, name: school.name});
+                                          setDeactivateDate(new Date().toISOString().split('T')[0]); // Today's date
+                                          setDeactivateReason("");
+                                          setShowDeactivatePopup(true);
+                                        }}
+                                        className="text-red-600"
+                                      >
+                                        <Ban className="mr-2 h-4 w-4" />
+                                        Deactivate
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  
+                                  <DropdownMenuSeparator />
+                                  
+                                  {/* Show deactivate button for schools with overdue payments */}
+                                  {hasOverdueBilling && isActive && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDeactivateDueToBilling(school.id, school.name)}
+                                      className="text-red-600"
+                                    >
+                                      <Ban className="mr-2 h-4 w-4" />
+                                      Deactivate (Non-Payment)
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  {/* Regular suspend/activate */}
+                                  <DropdownMenuItem 
+                                    onClick={() => isActive ? handleSuspend(school.id) : handleActivate(school.id)} 
+                                    className={isActive ? "text-destructive" : "text-green-600"}
+                                  >
+                                    {isActive ? "Suspend" : "Activate"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -738,6 +1047,66 @@ const Schools = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Deactivation Popup */}
+        <Dialog open={showDeactivatePopup} onOpenChange={setShowDeactivatePopup}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-red-600">Deactivate School</DialogTitle>
+              <DialogDescription>
+                You are about to deactivate <strong>{deactivateSchoolData?.name}</strong>. 
+                Users from this school will not be able to log in after deactivation.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="deactivate-date">Deactivation Date</Label>
+                <Input
+                  id="deactivate-date"
+                  type="date"
+                  value={deactivateDate}
+                  onChange={(e) => setDeactivateDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="deactivate-reason">Reason for Deactivation *</Label>
+                <Textarea
+                  id="deactivate-reason"
+                  placeholder="Please provide a detailed reason for deactivating this school..." 
+                  value={deactivateReason}
+                  onChange={(e) => setDeactivateReason(e.target.value)}
+                  className="min-h-[100px]"
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowDeactivatePopup(false);
+                  setDeactivateSchoolData(null);
+                  setDeactivateReason("");
+                  setDeactivateDate("");
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeactivateWithReason}
+                disabled={loading || !deactivateReason.trim()}
+              >
+                {loading ? "Deactivating..." : "Deactivate School"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

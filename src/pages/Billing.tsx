@@ -263,6 +263,25 @@ export default function Billing() {
     }
   };
 
+  const markInvoiceAsPaid = async (id: string, invoiceNumber: string, totalAmount: number) => {
+    if (!confirm(`Mark invoice ${invoiceNumber} as paid?`)) return;
+    try {
+      await authed(`/billing/invoices/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ 
+          status: 'paid',
+          amountPaid: totalAmount
+        }),
+      });
+      setSuccessMessage(`Invoice ${invoiceNumber} marked as paid successfully!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await loadInvoices();
+    } catch (error) {
+      console.error('Failed to mark invoice as paid:', error);
+      alert('Failed to mark invoice as paid: ' + (error as Error).message);
+    }
+  };
+
   return (
     <AdminLayout title="Billing Management" subtitle="Professional billing system for schools">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -483,8 +502,46 @@ export default function Billing() {
         {/* Invoices */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Invoices</CardTitle>
-            <CardDescription>Generated invoices for the school</CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle className="text-xl font-semibold">Invoices</CardTitle>
+                <CardDescription>Generated invoices for the school</CardDescription>
+              </div>
+              
+              {/* Mark All as Paid button - only show if there are unpaid invoices */}
+              {invoices.some(inv => inv.status !== 'paid' && inv.status !== 'cancelled') && (
+                <Button 
+                  onClick={async () => {
+                    const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled');
+                    if (!confirm(`Mark all ${unpaidInvoices.length} unpaid invoice(s) as paid?`)) return;
+                    
+                    try {
+                      for (const invoice of unpaidInvoices) {
+                        await authed(`/billing/invoices/${invoice.id}`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ 
+                            status: 'paid',
+                            amountPaid: invoice.totalAmount
+                          }),
+                        });
+                      }
+                      setSuccessMessage(`Successfully marked ${unpaidInvoices.length} invoice(s) as paid!`);
+                      setTimeout(() => setSuccessMessage(''), 3000);
+                      await loadInvoices();
+                    } catch (error) {
+                      console.error('Failed to mark invoices as paid:', error);
+                      alert('Failed to mark invoices as paid: ' + (error as Error).message);
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="mr-2 h-4 w-4">
+                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                  </svg>
+                  Mark All as Paid
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {invoices.length === 0 ? (
@@ -512,6 +569,22 @@ export default function Billing() {
                         }>
                           {invoice.status}
                         </Badge>
+                        
+                        {/* Mark as Paid button - only show for unpaid invoices */}
+                        {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => markInvoiceAsPaid(invoice.id, invoice.invoiceNumber, invoice.totalAmount)}
+                            aria-label="Mark as Paid"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                              <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                            </svg>
+                          </Button>
+                        )}
+                        
                         <Button variant="ghost" size="icon" onClick={() => deleteInvoice(invoice.id)} aria-label="Delete Invoice">
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-red-600">
                             <path d="M9 3a1 1 0 00-1 1v1H5a1 1 0 000 2h14a1 1 0 100-2h-3V4a1 1 0 00-1-1H9z"/>
