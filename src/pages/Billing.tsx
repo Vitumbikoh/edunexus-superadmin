@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Edit } from 'lucide-react';
+import { Edit, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '@/lib/utils';
 
@@ -285,6 +286,16 @@ export default function Billing() {
   return (
     <AdminLayout title="Billing Management" subtitle="Professional billing system for schools">
       <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* Link to New Billing Management */}
+        <div className="flex justify-end">
+          <Button variant="outline" asChild>
+            <Link to="/billing-management">
+              <Wallet className="mr-2 h-4 w-4" />
+              New Billing Management
+            </Link>
+          </Button>
+        </div>
 
         {/* Success Messages */}
         {successMessage && (

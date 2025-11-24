@@ -36,9 +36,9 @@ const sidebarItems = [
     href: "/users"
   },
   {
-    label: "Finance",
+    label: "Billing Management",
     icon: Wallet,
-    href: "/finance/billing"
+    href: "/billing-management"
   },
   {
     label: "System",
