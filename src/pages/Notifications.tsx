@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bell, Clock, CheckCircle2, AlertCircle, School, Copy, X } from "lucide-react";
-import { useNotifications, type Notification } from "@/hooks/useNotifications";
+import { useNotifications, useNotificationStats, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, type Notification } from "@/hooks/useNotifications";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,20 +47,29 @@ const NotificationItem = ({ notification, onClick }: { notification: Notificatio
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
                 <h4 className="text-sm font-medium truncate">
-                  {notification.schoolName}
+                  {notification.schoolName || notification.school?.name || 'System Notification'}
                 </h4>
-                <Badge variant="outline" className="text-xs">
-                  {notification.schoolCode}
-                </Badge>
+                {(notification.schoolCode || notification.school?.code) && (
+                  <Badge variant="outline" className="text-xs">
+                    {notification.schoolCode || notification.school?.code}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mb-2">
-                School credentials notification - Click to view details
+                {notification.message || `${notification.title} - Click to view details`}
               </p>
               <div className="flex items-center space-x-2 mt-2">
                 <Clock className="h-3 w-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
                   {new Date(notification.createdAt).toLocaleString()}
                 </span>
+                {notification.read && notification.readAt && (
+                  <>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    <span className="text-xs text-green-600">Read</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -116,13 +125,20 @@ const NotificationDetailsModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <School className="h-5 w-5" />
-            <span>{notification.schoolName}</span>
+            <span>{notification.schoolName || notification.school?.name || notification.title}</span>
           </DialogTitle>
           <div className="flex items-center space-x-2">
-            <Badge variant="outline">{notification.schoolCode}</Badge>
+            {(notification.schoolCode || notification.school?.code) && (
+              <Badge variant="outline">{notification.schoolCode || notification.school?.code}</Badge>
+            )}
             <Badge className={getPriorityColor(notification.priority)}>
               {notification.priority}
             </Badge>
+            {notification.read && (
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                Read
+              </Badge>
+            )}
           </div>
         </DialogHeader>
         
@@ -134,67 +150,74 @@ const NotificationDetailsModal = ({
             </div>
           </div>
 
-          {notification.credentials && (
+          {(notification.credentials || notification.metadata?.credentials) && (
             <div className="space-y-3">
               <h4 className="font-medium text-sm">School Credentials</h4>
               
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Username</label>
-                    <p className="font-mono text-sm">{notification.credentials.username}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(notification.credentials.username, 'Username')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+                {(() => {
+                  const creds = notification.credentials || notification.metadata?.credentials;
+                  return (
+                    <>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <label className="text-xs text-muted-foreground uppercase tracking-wide">Username</label>
+                          <p className="font-mono text-sm">{creds.username}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(creds.username, 'Username')}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Email</label>
-                    <p className="font-mono text-sm">{notification.credentials.email}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(notification.credentials.email, 'Email')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <label className="text-xs text-muted-foreground uppercase tracking-wide">Email</label>
+                          <p className="font-mono text-sm">{creds.email}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(creds.email, 'Email')}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="text-xs text-muted-foreground uppercase tracking-wide">Password</label>
-                    <p className="font-mono text-sm">{notification.credentials.password}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(notification.credentials.password, 'Password')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <label className="text-xs text-muted-foreground uppercase tracking-wide">Password</label>
+                          <p className="font-mono text-sm">{creds.password}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(creds.password, 'Password')}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-              <div className="flex space-x-2 pt-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    const allCredentials = `Username: ${notification.credentials.username}\nEmail: ${notification.credentials.email}\nPassword: ${notification.credentials.password}`;
-                    copyToClipboard(allCredentials, 'All credentials');
-                  }}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy All
-                </Button>
+                      <div className="flex space-x-2 pt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            const allCredentials = `Username: ${creds.username}\nEmail: ${creds.email}\nPassword: ${creds.password}`;
+                            copyToClipboard(allCredentials, 'All credentials');
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy All
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -206,12 +229,56 @@ const NotificationDetailsModal = ({
 
 const Notifications = () => {
   const { data: notifications = [], isLoading, error, refetch } = useNotifications();
+  const { data: stats } = useNotificationStats();
+  const markAsReadMutation = useMarkNotificationAsRead();
+  const markAllAsReadMutation = useMarkAllNotificationsAsRead();
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { toast } = useToast();
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleNotificationClick = async (notification: Notification) => {
     setSelectedNotification(notification);
     setIsModalOpen(true);
+    
+    // Mark as read when viewed
+    if (!notification.read) {
+      try {
+        await markAsReadMutation.mutateAsync(notification.id);
+        toast({
+          title: "Notification marked as read",
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+      }
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (stats?.unread === 0) {
+      toast({
+        title: "No unread notifications",
+        description: "All notifications are already marked as read",
+        duration: 2000,
+      });
+      return;
+    }
+
+    try {
+      await markAllAsReadMutation.mutateAsync();
+      toast({
+        title: "All notifications marked as read",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark all notifications as read",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const closeModal = () => {
@@ -219,7 +286,7 @@ const Notifications = () => {
     setSelectedNotification(null);
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = stats?.unread || notifications.filter(n => !n.read).length;
 
   return (
     <AdminLayout 
@@ -240,9 +307,14 @@ const Notifications = () => {
               {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
             {unreadCount > 0 && (
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                disabled={markAllAsReadMutation.isPending}
+              >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Mark All as Read
+                {markAllAsReadMutation.isPending ? 'Marking...' : 'Mark All as Read'}
               </Button>
             )}
           </div>
@@ -259,7 +331,7 @@ const Notifications = () => {
               <Bell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{notifications.length}</div>
+              <div className="text-2xl font-bold">{stats?.total || notifications.length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -278,7 +350,7 @@ const Notifications = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {notifications.filter(n => n.type === 'credentials').length}
+                {stats?.byType?.credentials || notifications.filter(n => n.type === 'credentials').length}
               </div>
             </CardContent>
           </Card>

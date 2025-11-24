@@ -412,7 +412,9 @@ export function BillingManagement() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{financialSummary.totalSchools}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Total active schools</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {financialSummary.paidSchools} paid, {financialSummary.overdueSchools} overdue
+                  </p>
                 </CardContent>
               </Card>
             </>
@@ -602,38 +604,6 @@ export function BillingManagement() {
                 </CardContent>
               </Card>
 
-              {/* Partial Payment Schools */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Partial Payment ({allSchoolsData.filter(s => s.billingStatus?.status === 'partial').length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 max-h-96 overflow-y-auto">
-                  {allSchoolsData.filter(school => school.billingStatus?.status === 'partial').map((school) => (
-                    <div key={school.id} className="p-4 border-b hover:bg-muted/50">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{school.name}</p>
-                          <p className="text-sm text-muted-foreground">{school.code}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Remaining: MK {school.outstandingAmount?.toLocaleString() || 0}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">
-                          Partial
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                  {allSchoolsData.filter(s => s.billingStatus?.status === 'partial').length === 0 && (
-                    <div className="p-8 text-center text-muted-foreground">
-                      No partial payment schools
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 

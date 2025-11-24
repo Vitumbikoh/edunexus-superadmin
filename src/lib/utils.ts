@@ -116,3 +116,20 @@ export async function validateToken(token: string) {
 export async function getSchoolCredentials() {
   return request('/schools/credentials/all', { method: 'GET' });
 }
+
+// Notification API functions
+export async function getNotifications(page: number = 1, limit: number = 10) {
+  return request(`/notifications?page=${page}&limit=${limit}`, { method: 'GET' });
+}
+
+export async function getNotificationStats() {
+  return request('/notifications/stats', { method: 'GET' });
+}
+
+export async function markNotificationAsRead(id: string) {
+  return request(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export async function markAllNotificationsAsRead() {
+  return request('/notifications/read-all', { method: 'PATCH' });
+}
