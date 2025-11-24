@@ -46,6 +46,9 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
+          <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
+            <img src="/polymilesicon.png" alt="Schomas Admin Logo" className="w-16 h-16 object-contain" />
+          </div>
           <CardTitle className="text-2xl font-bold">Schomas Admin</CardTitle>
           <CardDescription>Sign in to your admin account</CardDescription>
         </CardHeader>

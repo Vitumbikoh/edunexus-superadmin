@@ -66,13 +66,26 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <School className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg">
+              <img 
+                src="/polymilesicon.png" 
+                alt="Schomas Logo" 
+                className="h-8 w-8 object-contain"
+              />
             </div>
             <div>
               <h2 className="text-lg font-semibold tracking-tight">Schomas</h2>
               <p className="text-xs text-muted-foreground">Admin Portal</p>
             </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="flex h-8 w-8 items-center justify-center">
+            <img 
+              src="/polymilesicon.png" 
+              alt="Schomas Logo" 
+              className="h-6 w-6 object-contain"
+            />
           </div>
         )}
         <Button

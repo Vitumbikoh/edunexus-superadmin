@@ -6,7 +6,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Bell, ShieldCheck } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Save, 
+  Bell, 
+  ShieldCheck, 
+  User, 
+  School, 
+  Settings as SettingsIcon, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Building2,
+  UserCircle,
+  Lock,
+  Smartphone,
+  Globe,
+  Calendar,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -139,144 +159,335 @@ const Settings = () => {
 
   return (
     <AdminLayout title="Settings" subtitle="Manage your account and school settings">
-      <div className="space-y-6">
-        <Tabs defaultValue="general" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-          </TabsList>
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-lg p-6 border">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm">
+              <SettingsIcon className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Account Settings</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your account preferences and school configuration</p>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Badge variant="outline" className="bg-white dark:bg-slate-800">
+                <UserCircle className="w-3 h-3 mr-1" />
+                {role}
+              </Badge>
+            </div>
+          </div>
+        </div>
 
-          <TabsContent value="general" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account</CardTitle>
-                  <CardDescription>Basic account information</CardDescription>
+        <Tabs defaultValue="account" className="space-y-6">
+          <div className="border-b border-slate-200 dark:border-slate-700">
+            <TabsList className="h-12 bg-transparent p-0 space-x-8">
+              <TabsTrigger 
+                value="account" 
+                className="h-12 px-0 pb-3 pt-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none font-medium"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Account Profile
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger 
+                  value="school" 
+                  className="h-12 px-0 pb-3 pt-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none font-medium"
+                >
+                  <School className="h-4 w-4 mr-2" />
+                  School Information
+                </TabsTrigger>
+              )}
+              <TabsTrigger 
+                value="notifications" 
+                className="h-12 px-0 pb-3 pt-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none font-medium"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Notifications
+              </TabsTrigger>
+              <TabsTrigger 
+                value="security" 
+                className="h-12 px-0 pb-3 pt-2 border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none font-medium"
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                Security & Privacy
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="account" className="space-y-6 mt-6">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <UserCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Personal Information</CardTitle>
+                    <CardDescription>Update your personal details and contact information</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="username" className="text-sm font-medium flex items-center gap-2">
+                      <User className="h-4 w-4 text-slate-500" />
+                      Username
+                    </Label>
+                    {loading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : (
+                      <Input 
+                        id="username" 
+                        value={username} 
+                        onChange={(e) => setUsername(e.target.value)} 
+                        className="h-10"
+                        placeholder="Enter your username"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-slate-500" />
+                      Email Address
+                    </Label>
+                    {loading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : (
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        value={email} 
+                        onChange={(e) => setEmail(e.target.value)} 
+                        className="h-10"
+                        placeholder="Enter your email address"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-slate-500" />
+                      Phone Number
+                    </Label>
+                    {loading ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : (
+                      <Input 
+                        id="phone" 
+                        value={phone} 
+                        onChange={(e) => setPhone(e.target.value)} 
+                        className="h-10"
+                        placeholder="Enter your phone number"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Badge className="h-4 w-4 text-slate-500" />
+                      Account Role
+                    </Label>
+                    <div className="h-10 flex items-center">
+                      <Badge variant="secondary" className="px-3 py-1.5 text-sm">
+                        {role}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="school" className="space-y-6 mt-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">School Information</CardTitle>
+                      <CardDescription>Manage your school's public information and contact details</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
-                    {loading ? (
-                      <Skeleton className="h-9 w-full" />
-                    ) : (
-                      <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
-                    )}
+                <CardContent className="space-y-6">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-3">
+                      <Label htmlFor="school-name" className="text-sm font-medium flex items-center gap-2">
+                        <School className="h-4 w-4 text-slate-500" />
+                        School Name
+                      </Label>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Input 
+                          id="school-name" 
+                          value={school?.schoolName || ""} 
+                          onChange={(e) => setSchool(s => s ? { ...s, schoolName: e.target.value } : null)} 
+                          className="h-10"
+                          placeholder="Enter school name"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="school-email" className="text-sm font-medium flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-slate-500" />
+                        School Email
+                      </Label>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Input 
+                          id="school-email" 
+                          type="email" 
+                          value={school?.schoolEmail || ""} 
+                          onChange={(e) => setSchool(s => s ? { ...s, schoolEmail: e.target.value } : null)} 
+                          className="h-10"
+                          placeholder="Enter school email"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="school-phone" className="text-sm font-medium flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-slate-500" />
+                        School Phone
+                      </Label>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Input 
+                          id="school-phone" 
+                          value={school?.schoolPhone || ""} 
+                          onChange={(e) => setSchool(s => s ? { ...s, schoolPhone: e.target.value } : null)} 
+                          className="h-10"
+                          placeholder="Enter school phone number"
+                        />
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    {loading ? (
-                      <Skeleton className="h-9 w-full" />
-                    ) : (
-                      <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    {loading ? (
-                      <Skeleton className="h-9 w-full" />
-                    ) : (
-                      <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                    )}
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <Label htmlFor="school-address" className="text-sm font-medium flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-slate-500" />
+                        School Address
+                      </Label>
+                      {loading ? (
+                        <Skeleton className="h-24 w-full" />
+                      ) : (
+                        <Textarea 
+                          id="school-address" 
+                          value={school?.schoolAddress || ""} 
+                          onChange={(e) => setSchool(s => s ? { ...s, schoolAddress: e.target.value } : null)} 
+                          rows={3} 
+                          className="resize-none"
+                          placeholder="Enter complete school address"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label htmlFor="school-about" className="text-sm font-medium flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-slate-500" />
+                        About School
+                      </Label>
+                      {loading ? (
+                        <Skeleton className="h-24 w-full" />
+                      ) : (
+                        <Textarea 
+                          id="school-about" 
+                          value={school?.schoolAbout || ""} 
+                          onChange={(e) => setSchool(s => s ? { ...s, schoolAbout: e.target.value } : null)} 
+                          rows={3} 
+                          className="resize-none"
+                          placeholder="Brief description about your school, its mission, and values"
+                        />
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+          )}
 
-              {isAdmin && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>School Settings</CardTitle>
-                    <CardDescription>Visible to your organization</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="school-name">School Name</Label>
-                      {loading ? (
-                        <Skeleton className="h-9 w-full" />
-                      ) : (
-                        <Input id="school-name" value={school?.schoolName || ""} onChange={(e) => setSchool(s => s ? { ...s, schoolName: e.target.value } : null)} />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="school-email">School Email</Label>
-                      {loading ? (
-                        <Skeleton className="h-9 w-full" />
-                      ) : (
-                        <Input id="school-email" type="email" value={school?.schoolEmail || ""} onChange={(e) => setSchool(s => s ? { ...s, schoolEmail: e.target.value } : null)} />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="school-phone">School Phone</Label>
-                      {loading ? (
-                        <Skeleton className="h-9 w-full" />
-                      ) : (
-                        <Input id="school-phone" value={school?.schoolPhone || ""} onChange={(e) => setSchool(s => s ? { ...s, schoolPhone: e.target.value } : null)} />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="school-address">Address</Label>
-                      {loading ? (
-                        <Skeleton className="h-20 w-full" />
-                      ) : (
-                        <Textarea id="school-address" value={school?.schoolAddress || ""} onChange={(e) => setSchool(s => s ? { ...s, schoolAddress: e.target.value } : null)} rows={3} />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="school-about">About</Label>
-                      {loading ? (
-                        <Skeleton className="h-20 w-full" />
-                      ) : (
-                        <Textarea id="school-about" value={school?.schoolAbout || ""} onChange={(e) => setSchool(s => s ? { ...s, schoolAbout: e.target.value } : null)} rows={3} />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="notifications" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Bell className="h-4 w-4" />
-                  <span>Notification Preferences</span>
-                </CardTitle>
-                <CardDescription>How you want to be notified</CardDescription>
+          <TabsContent value="notifications" className="space-y-6 mt-6">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Notification Preferences</CardTitle>
+                    <CardDescription>Choose how and when you want to receive notifications</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Email</Label>
-                      <p className="text-xs text-muted-foreground">Receive emails for important updates</p>
+              <CardContent className="space-y-6">
+                <div className="grid gap-6">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <Mail className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Email Notifications</Label>
+                        <p className="text-xs text-muted-foreground">Receive important updates and alerts via email</p>
+                      </div>
                     </div>
                     {loading ? <Skeleton className="h-6 w-11" /> : (
                       <Switch checked={!!notifications.email} onCheckedChange={(v) => setNotifications(n => ({ ...n, email: !!v }))} />
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>SMS</Label>
-                      <p className="text-xs text-muted-foreground">Get text notifications</p>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <Smartphone className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">SMS Notifications</Label>
+                        <p className="text-xs text-muted-foreground">Get urgent notifications via text message</p>
+                      </div>
                     </div>
                     {loading ? <Skeleton className="h-6 w-11" /> : (
                       <Switch checked={!!notifications.sms} onCheckedChange={(v) => setNotifications(n => ({ ...n, sms: !!v }))} />
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Browser</Label>
-                      <p className="text-xs text-muted-foreground">Enable in-app/browser alerts</p>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                        <Globe className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Browser Notifications</Label>
+                        <p className="text-xs text-muted-foreground">Show notifications in your browser while using the app</p>
+                      </div>
                     </div>
                     {loading ? <Skeleton className="h-6 w-11" /> : (
                       <Switch checked={!!notifications.browser} onCheckedChange={(v) => setNotifications(n => ({ ...n, browser: !!v }))} />
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Weekly Summary</Label>
-                      <p className="text-xs text-muted-foreground">Digest of activity each week</p>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                        <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium">Weekly Summary</Label>
+                        <p className="text-xs text-muted-foreground">Receive a weekly digest of your school's activities</p>
+                      </div>
                     </div>
                     {loading ? <Skeleton className="h-6 w-11" /> : (
                       <Switch checked={!!notifications.weeklySummary} onCheckedChange={(v) => setNotifications(n => ({ ...n, weeklySummary: !!v }))} />
@@ -287,34 +498,69 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="security" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <ShieldCheck className="h-4 w-4" />
-                  <span>Security</span>
-                </CardTitle>
-                <CardDescription>Protect your account</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Two-factor authentication</Label>
-                    <p className="text-xs text-muted-foreground">Require OTP during login</p>
+          <TabsContent value="security" className="space-y-6 mt-6">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <ShieldCheck className="h-5 w-5 text-red-600 dark:text-red-400" />
                   </div>
-                  {loading ? <Skeleton className="h-6 w-11" /> : (
-                    <Switch checked={!!security.twoFactor} onCheckedChange={(v) => setSecurity({ twoFactor: !!v })} />
-                  )}
+                  <div>
+                    <CardTitle className="text-xl">Security & Privacy</CardTitle>
+                    <CardDescription>Manage your account security settings and privacy preferences</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                      <Lock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-sm font-medium">Two-Factor Authentication</Label>
+                      <p className="text-xs text-muted-foreground">Add an extra layer of security with OTP verification</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {loading ? <Skeleton className="h-6 w-11" /> : (
+                      <>
+                        <Switch checked={!!security.twoFactor} onCheckedChange={(v) => setSecurity({ twoFactor: !!v })} />
+                        {security.twoFactor && (
+                          <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span className="text-xs font-medium">Enabled</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Security Recommendation</span>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    For enhanced security, we recommend enabling two-factor authentication and using a strong, unique password.
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={saving || loading}>
+        {/* Save Button */}
+        <div className="flex justify-end pt-6 border-t border-slate-200 dark:border-slate-700">
+          <Button 
+            onClick={save} 
+            disabled={saving || loading}
+            size="lg"
+            className="min-w-[120px] h-11"
+          >
             <Save className="mr-2 h-4 w-4" />
-            {saving ? "Saving..." : "Save Settings"}
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>
