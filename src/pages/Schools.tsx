@@ -292,6 +292,28 @@ const Schools = () => {
 
       setShowAdd(false);
       setNewSchool({ name: "", code: "" });
+
+      // After creating a school, ensure a "Graduated" class exists for this school (auto-create if missing)
+      try {
+        const schoolId = (response as any)?.school?.id;
+        if (schoolId) {
+          const created = await ensureGraduatedClassForSchool(schoolId);
+          if (created) {
+            toast({
+              title: "Graduated Class Created",
+              description: "A default 'Graduated' class was created for this school.",
+            });
+          } else {
+            // Already exists; no action needed
+          }
+        }
+      } catch (e:any) {
+        console.warn('Failed to ensure Graduated class:', e);
+        toast({
+          title: "Graduated Class Setup Warning",
+          description: e?.message || "Could not create 'Graduated' class automatically. You can create it manually.",
+        });
+      }
       await fetchSchools(search, currentPage);
       if (showCredentials) {
         await fetchCredentials(search, currentPage);
@@ -331,6 +353,28 @@ const Schools = () => {
         description: 'School updated successfully',
       });
 
+      // On edit, try to create "Graduated" class if missing; if exists, inform user cannot create again
+      try {
+        const created = await ensureGraduatedClassForSchool(editSchool.id);
+        if (created) {
+          toast({
+            title: "Graduated Class Created",
+            description: "A default 'Graduated' class was created since it was missing.",
+          });
+        } else {
+          toast({
+            title: "Graduated Class Exists",
+            description: "You can't create the 'Graduated' class for this school — it already exists.",
+          });
+        }
+      } catch (e:any) {
+        console.warn('Graduated class check failed:', e);
+        toast({
+          title: "Graduated Class Setup Warning",
+          description: e?.message || "Could not verify/create 'Graduated' class.",
+        });
+      }
+
       setEditSchool(null);
       await fetchSchools(search, currentPage);
     } catch (err: any) {
@@ -343,6 +387,139 @@ const Schools = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Ensure a "Graduated" class exists for the given school. Returns true if created, false if already exists.
+  const ensureGraduatedClassForSchool = async (schoolId: string): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('Not authenticated');
+    if (!schoolId || typeof schoolId !== 'string' || schoolId.trim().length === 0) {
+      throw new Error('Missing schoolId. Cannot create Graduated class without a school context.');
+    }
+
+    // 1) Fetch classes scoped to the school (via tenant header)
+    const scopedRes = await fetch(`${API_BASE}/classes?schoolId=${encodeURIComponent(schoolId)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Tenant-ID': schoolId,
+      },
+    });
+    if (!scopedRes.ok) {
+      const txt = await scopedRes.text();
+      throw new Error(txt || `Failed to list classes: ${scopedRes.status}`);
+    }
+    const scopedText = await scopedRes.text();
+    const scopedClasses = scopedText ? JSON.parse(scopedText) : [];
+    const graduatedInTenant = Array.isArray(scopedClasses) ? scopedClasses.find((c:any) => String(c?.name || '').toLowerCase() === 'graduated') : undefined;
+    if (graduatedInTenant) {
+      // Normalize numericalName to 999 if not already
+      if (graduatedInTenant.numericalName !== 999) {
+        const normRes = await fetch(`${API_BASE}/classes/${graduatedInTenant.id}?schoolId=${encodeURIComponent(schoolId)}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Tenant-ID': schoolId,
+          },
+          body: JSON.stringify({ numericalName: 999 }),
+        });
+        // Ignore non-OK normalization errors silently
+      }
+      return false;
+    }
+
+    // 2) Try to find an orphaned 'Graduated' class without schoolId and assign it
+    const globalRes = await fetch(`${API_BASE}/classes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (globalRes.ok) {
+      const globalText = await globalRes.text();
+      const globalClasses = globalText ? JSON.parse(globalText) : [];
+      const orphan = Array.isArray(globalClasses) ? globalClasses.find((c:any) => String(c?.name || '').toLowerCase() === 'graduated' && !c?.schoolId) : undefined;
+      if (orphan?.id) {
+        const updateRes = await fetch(`${API_BASE}/classes/${orphan.id}?schoolId=${encodeURIComponent(schoolId)}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-Tenant-ID': schoolId,
+          },
+          body: JSON.stringify({ schoolId, school_id: schoolId, numericalName: 999, description: orphan.description || 'Graduated class' }),
+        });
+        if (!updateRes.ok) {
+          const txt = await updateRes.text();
+          throw new Error(txt || `Failed to assign Graduated class to school: ${updateRes.status}`);
+        }
+        return true; // orphan fixed
+      }
+    }
+
+    // Create the "Graduated" class
+    const createRes = await fetch(`${API_BASE}/classes?schoolId=${encodeURIComponent(schoolId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Tenant-ID': schoolId,
+      },
+      body: JSON.stringify({ name: 'Graduated', numericalName: 999, description: 'Graduated class', schoolId, school_id: schoolId }),
+    });
+    if (!createRes.ok) {
+      const txt = await createRes.text();
+      throw new Error(txt || `Failed to create Graduated class: ${createRes.status}`);
+    }
+
+    // CRITICAL: Verify the created class has the correct schoolId - FAIL THE ENTIRE OPERATION IF NOT
+    const createdText = await createRes.text();
+    const created = createdText ? JSON.parse(createdText) : undefined;
+    const createdId = created?.id;
+    const createdSchoolId = created?.schoolId ?? created?.school_id;
+    
+    if (!createdId) {
+      throw new Error('CRITICAL: Failed to create Graduated class - no ID returned. School save aborted.');
+    }
+    
+    if (!createdSchoolId || createdSchoolId !== schoolId) {
+      // Try one final update attempt
+      const fixRes = await fetch(`${API_BASE}/classes/${createdId}?schoolId=${encodeURIComponent(schoolId)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': schoolId,
+        },
+        body: JSON.stringify({ schoolId, school_id: schoolId, numericalName: 999 }),
+      });
+      
+      if (!fixRes.ok) {
+        throw new Error(`CRITICAL: Cannot assign schoolId to Graduated class. Backend does not accept schoolId. School save aborted.`);
+      }
+      
+      // Verify the fix worked
+      const verifyRes = await fetch(`${API_BASE}/classes/${createdId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': schoolId,
+        },
+      });
+      
+      if (verifyRes.ok) {
+        const verifyText = await verifyRes.text();
+        const verified = verifyText ? JSON.parse(verifyText) : undefined;
+        const verifiedSchoolId = verified?.schoolId ?? verified?.school_id;
+        if (!verifiedSchoolId || verifiedSchoolId !== schoolId) {
+          throw new Error(`CRITICAL: Graduated class created but schoolId is still missing/wrong (${verifiedSchoolId}). Backend issue. School save aborted.`);
+        }
+      } else {
+        throw new Error(`CRITICAL: Cannot verify Graduated class schoolId assignment. School save aborted.`);
+      }
+    }
+    
+    return true;
   };
 
   const handleSuspend = async (id: string) => {
