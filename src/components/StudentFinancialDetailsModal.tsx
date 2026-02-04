@@ -26,6 +26,9 @@ interface StudentFinancialDetails {
     studentId: string;
     email?: string;
     className: string;
+    isActive?: boolean;
+    inactivationReason?: string | null;
+    inactivatedAt?: string | null;
   };
   summary: {
     totalExpectedAllTerms: number;
@@ -232,6 +235,22 @@ export function StudentFinancialDetailsModal({
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Class</p>
                       <p className="text-lg font-semibold">{details.student.className}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Status</p>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={details.student.isActive ? "default" : "destructive"}
+                          className="text-sm"
+                        >
+                          {details.student.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        {!details.student.isActive && details.student.inactivationReason && (
+                          <span className="text-xs text-muted-foreground capitalize">
+                            ({details.student.inactivationReason.replace(/_/g, ' ')})
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {details.student.email && (
                       <div className="md:col-span-3">
