@@ -1,12 +1,13 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { API_BASE_URL } from '@/config/api';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// API base - prefer Vite env, fallback to localhost:5000
-export const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL ?? "http://localhost:5000/api/v1";
+// API base - centralized from config
+export const API_BASE = API_BASE_URL;
 
 // Optionally store / retrieve tenant id (if TenantGuard requires it)
 export function setTenantId(tenantId: string | null) {
