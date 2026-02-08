@@ -1,7 +1,7 @@
 // Quick diagnostic to check Graduated class creation
 // Run with: node diagnose-graduated.js
 
-const API_BASE = process.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE = process.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 const token = process.argv[2];
 const schoolId = process.argv[3] || '4ba487ae-16c8-4403-a6f4-5a0241cbee04';
 

@@ -7,7 +7,7 @@
 
 import { createInterface } from 'readline';
 
-const API_BASE = process.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE = process.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 const DEFAULT_SCHOOL_ID = '4ba487ae-16c8-4403-a6f4-5a0241cbee04';
 
 async function testGraduatedClassCreation() {

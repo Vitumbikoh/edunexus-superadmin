@@ -9,7 +9,7 @@ param(
     [string]$SchoolId = "4ba487ae-16c8-4403-a6f4-5a0241cbee04",
     
     [Parameter(Mandatory=$false)]
-    [string]$ApiBase = "http://localhost:3000/api/v1"
+    [string]$ApiBase = "http://localhost:5000/api/v1"
 )
 
 Write-Host "🧪 Testing Graduated Class Creation with schoolId..." -ForegroundColor Cyan

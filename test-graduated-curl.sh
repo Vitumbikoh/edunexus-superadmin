@@ -4,7 +4,7 @@
 
 TOKEN="${1:-}"
 SCHOOL_ID="${2:-4ba487ae-16c8-4403-a6f4-5a0241cbee04}"
-API_BASE="${VITE_API_BASE_URL:-http://localhost:3000/api/v1}"
+API_BASE="${VITE_API_BASE_URL:-http://localhost:5000/api/v1}"
 
 if [ -z "$TOKEN" ]; then
   echo "❌ Usage: ./test-graduated-curl.sh <token> [schoolId]"

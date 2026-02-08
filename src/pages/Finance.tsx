@@ -245,7 +245,7 @@ export default function Finance() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/v1/receipts/${t.id}`, '_blank')}
+                          onClick={() => window.open(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/v1/receipts/${t.id}`, '_blank')}
                         >
                           Print
                         </Button>
