@@ -70,6 +70,9 @@ interface StudentFinancialDetails {
     termId: string;
     termNumber?: number;
     academicYear?: string;
+    forTermId?: string;
+    forTermNumber?: number;
+    forAcademicYear?: string;
     status: string;
     processedBy: string;
   }>;
@@ -424,9 +427,9 @@ export function StudentFinancialDetailsModal({
                               <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Amount</TableHead>
-                                <TableHead>Payment Type</TableHead>
                                 <TableHead>Method</TableHead>
                                 <TableHead>Receipt</TableHead>
+                                <TableHead>For Term</TableHead>
                                 <TableHead>Term</TableHead>
                                 <TableHead>Processed By</TableHead>
                               </TableRow>
@@ -438,10 +441,12 @@ export function StudentFinancialDetailsModal({
                                   <TableCell className="font-semibold">
                                     {formatMK(transaction.amount)}
                                   </TableCell>
-                                  <TableCell>{transaction.paymentType}</TableCell>
                                   <TableCell>{transaction.paymentMethod}</TableCell>
                                   <TableCell>
                                     {transaction.receiptNumber || '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {transaction.forTermNumber ? `Term ${transaction.forTermNumber} - ${transaction.forAcademicYear}` : (transaction.status === 'completed' && transaction.paymentType === 'Credit Balance' ? 'Credit' : '-')}
                                   </TableCell>
                                   <TableCell>
                                     Term {transaction.termNumber} - {transaction.academicYear}

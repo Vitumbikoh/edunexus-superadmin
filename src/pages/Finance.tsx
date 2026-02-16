@@ -69,7 +69,14 @@ export default function Finance() {
   }, [termId, academicCalendarId]);
 
   const totals = summary?.summary;
-  const hasData = !!(totals && (totals.totalFeesPaid || totals.expectedFees || totals.pending));
+  // ALWAYS show Pending as Expected - ActualRevenue (user-requested behavior)
+  const displayPending = (() => {
+    if (!totals) return 0;
+    const expected = totals.expectedFees || 0;
+    const actual = (totals as any).actualRevenue || 0;
+    return expected - actual;
+  })();
+  const hasData = !!(totals && (totals.totalFeesPaid || totals.expectedFees || displayPending));
 
   return (
     <AdminLayout title="Finance" subtitle="Filter-driven financial overview">
@@ -141,7 +148,7 @@ export default function Finance() {
               <CardDescription className="text-xs">Selected term only</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatMK(totals?.pending || 0)}</div>
+              <div className="text-2xl font-bold">{formatMK(displayPending)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -278,6 +285,7 @@ export default function Finance() {
         academicCalendarId={academicCalendarId}
         termId={termId}
       />
-    </AdminLayout>
+    </AdminLayout> 
+    
   );
 }
