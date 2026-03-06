@@ -1,60 +1,99 @@
 import { useState } from "react";
+import { ElementType } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  LayoutDashboard, 
-  School, 
-  Users, 
-  FileText, 
-  Settings, 
+import {
+  LayoutDashboard,
+  School,
+  Users,
+  Settings,
   Database,
   ChevronLeft,
   ChevronRight,
-  Wallet
+  Wallet,
+  Bell,
+  MessageSquare,
+  CalendarDays,
+  BookOpen,
 } from "lucide-react";
 
 interface AdminSidebarProps {
   className?: string;
 }
 
-const sidebarItems = [
+type SidebarItem = {
+  label: string;
+  icon: ElementType;
+  href: string;
+};
+
+type SidebarSection = {
+  title: string;
+  items: SidebarItem[];
+};
+
+const sidebarSections: SidebarSection[] = [
   {
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/"
+    title: "Main Menu",
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, href: "/" },
+    ],
   },
   {
-    label: "Schools",
-    icon: School,
-    href: "/schools"
+    title: "Management",
+    items: [
+      { label: "Schools", icon: School, href: "/schools" },
+      { label: "Users", icon: Users, href: "/users" },
+      { label: "Billing Management", icon: Wallet, href: "/billing-management" },
+    ],
   },
   {
-    label: "Users",
-    icon: Users,
-    href: "/users"
+    title: "Communications",
+    items: [
+      { label: "Notices", icon: Bell, href: "/notices" },
+      { label: "Messages", icon: MessageSquare, href: "/messages" },
+    ],
   },
   {
-    label: "Billing Management",
-    icon: Wallet,
-    href: "/billing-management"
+    title: "System",
+    items: [
+      { label: "System", icon: Database, href: "/system" },
+      { label: "Settings", icon: Settings, href: "/settings" },
+    ],
   },
-  {
-    label: "System",
-    icon: Database,
-    href: "/system"
-  },
-  {
-    label: "Settings",
-    icon: Settings,
-    href: "/settings"
-  }
+];
+
+const bottomItems: SidebarItem[] = [
+  { label: "Academic Calendar", icon: CalendarDays, href: "/academic-calendar" },
+  { label: "Term", icon: BookOpen, href: "/term" },
 ];
 
 export function AdminSidebar({ className }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  const renderItem = (item: SidebarItem) => {
+    const Icon = item.icon;
+    const isActive = location.pathname === item.href;
+    return (
+      <Button
+        key={item.href}
+        variant={isActive ? "default" : "ghost"}
+        className={cn(
+          "w-full justify-start gap-3 text-left",
+          collapsed && "justify-center px-2"
+        )}
+        asChild
+      >
+        <Link to={item.href}>
+          <Icon className="h-4 w-4 flex-shrink-0" />
+          {!collapsed && <span className="truncate">{item.label}</span>}
+        </Link>
+      </Button>
+    );
+  };
 
   return (
     <div className={cn(
@@ -67,9 +106,9 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg">
-              <img 
-                src="/polymilesicon.png" 
-                alt="Schomas Logo" 
+              <img
+                src="/polymilesicon.png"
+                alt="Schomas Logo"
                 className="h-8 w-8 object-contain"
               />
             </div>
@@ -81,9 +120,9 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
         )}
         {collapsed && (
           <div className="flex h-8 w-8 items-center justify-center">
-            <img 
-              src="/polymilesicon.png" 
-              alt="Schomas Logo" 
+            <img
+              src="/polymilesicon.png"
+              alt="Schomas Logo"
               className="h-6 w-6 object-contain"
             />
           </div>
@@ -104,29 +143,35 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-2">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.href;
-            return (
-              <Button
-                key={item.href}
-                variant={isActive ? "default" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3 text-left",
-                  collapsed && "justify-center px-2"
-                )}
-                asChild
-              >
-                <Link to={item.href}>
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              </Button>
-            );
-          })}
+        <nav className="space-y-4">
+          {sidebarSections.map((section) => (
+            <div key={section.title}>
+              {!collapsed ? (
+                <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {section.title}
+                </p>
+              ) : (
+                <div className="mb-1 border-t border-border/40" />
+              )}
+              <div className="space-y-1">
+                {section.items.map(renderItem)}
+              </div>
+            </div>
+          ))}
         </nav>
       </ScrollArea>
+
+      {/* Bottom pinned — Academic Calendar & Term (all roles) */}
+      <div className="border-t px-3 py-3">
+        {!collapsed && (
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Academic
+          </p>
+        )}
+        <div className="space-y-1">
+          {bottomItems.map(renderItem)}
+        </div>
+      </div>
 
       {/* Footer */}
       {!collapsed && (
