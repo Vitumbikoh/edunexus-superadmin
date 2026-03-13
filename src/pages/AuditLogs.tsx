@@ -39,7 +39,7 @@ const mockAuditLogs = [
   {
     id: 3,
     timestamp: "2024-01-15 14:20:08",
-    user: "system@schomas.com",
+    user: "system@edunexus.com",
     action: "BACKUP_CREATED",
     resource: "Database Backup",
     school: "System",
@@ -61,7 +61,7 @@ const mockAuditLogs = [
   {
     id: 5,
     timestamp: "2024-01-15 14:10:41",
-    user: "admin@schomas.com",
+    user: "admin@edunexus.com",
     action: "SCHOOL_SUSPENDED",
     resource: "School: Central Academy",
     school: "System",

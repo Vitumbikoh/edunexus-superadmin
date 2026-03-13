@@ -13,7 +13,7 @@ const Index = () => {
   return (
     <AdminLayout 
       title="Dashboard" 
-      subtitle="Overview of your Schomas platform"
+      subtitle="Overview of your edunexus platform"
     >
       <div className="space-y-6">
         {/* Header with refresh button */}

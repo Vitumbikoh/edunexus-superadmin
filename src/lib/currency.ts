@@ -1,5 +1,5 @@
 /**
- * Currency utilities for SCHOMAS Admin
+ * Currency utilities for edunexus Admin
  * Supports MWK (Malawian Kwacha) and USD currencies
  */
 

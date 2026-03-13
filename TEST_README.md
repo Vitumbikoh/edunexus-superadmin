@@ -20,7 +20,7 @@ This test verifies that the "Graduated" class is created with the correct `schoo
 
 #### Windows (PowerShell)
 ```powershell
-cd schomas-admin
+cd edunexus-admin
 .\test-graduated.ps1 -Token "YOUR_TOKEN" -SchoolId "SCHOOL_ID"
 ```
 
@@ -31,7 +31,7 @@ cd schomas-admin
 
 #### Linux/Mac (Bash)
 ```bash
-cd schomas-admin
+cd edunexus-admin
 bash test-graduated-curl.sh YOUR_TOKEN SCHOOL_ID
 ```
 

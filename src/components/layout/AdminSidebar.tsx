@@ -108,12 +108,12 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg">
               <img
                 src="/polymilesicon.png"
-                alt="Schomas Logo"
+                alt="edunexus Logo"
                 className="h-8 w-8 object-contain"
               />
             </div>
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Schomas</h2>
+              <h2 className="text-lg font-semibold tracking-tight">edunexus</h2>
               <p className="text-xs text-muted-foreground">Admin Portal</p>
             </div>
           </div>
@@ -122,7 +122,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
           <div className="flex h-8 w-8 items-center justify-center">
             <img
               src="/polymilesicon.png"
-              alt="Schomas Logo"
+              alt="edunexus Logo"
               className="h-6 w-6 object-contain"
             />
           </div>
@@ -182,7 +182,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">Super Admin</p>
-              <p className="text-xs text-muted-foreground truncate">admin@schomas.com</p>
+              <p className="text-xs text-muted-foreground truncate">admin@edunexus.com</p>
             </div>
           </div>
         </div>
