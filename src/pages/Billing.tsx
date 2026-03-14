@@ -25,18 +25,25 @@ type BillingPlan = {
   schoolId: string;
   ratePerStudent: number;
   currency: string;
-  cadence: 'per_term' | 'per_academic_year';
+  cadence: 'monthly' | 'per_term' | 'per_academic_year';
+  planType: 'per_student' | 'package';
   effectiveFrom: string;
   isActive: boolean;
 };
 
+type InvoiceScope = 'monthly' | 'term' | 'academic_calendar';
+
 export default function Billing() {
   const [rate, setRate] = useState('500');
   const [currency, setCurrency] = useState('MWK');
-  const [cadence, setCadence] = useState<'per_term' | 'per_academic_year'>('per_term');
+  const [planType, setPlanType] = useState<'per_student' | 'package'>('per_student');
+  const [cadence, setCadence] = useState<'monthly' | 'per_term' | 'per_academic_year'>('per_term');
+  const [packageRates, setPackageRates] = useState({ normal: '120', silver: '200', golden: '300' });
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoiceScope, setInvoiceScope] = useState<InvoiceScope>('term');
+  const [billingMonth, setBillingMonth] = useState('');
   const [termId, setTermId] = useState('');
   const [academicCalendarId, setAcademicCalendarId] = useState('');
   const [schools, setSchools] = useState<{ id: string; name: string; code: string }[]>([]);
@@ -51,6 +58,7 @@ export default function Billing() {
   const editPlan = (plan: BillingPlan) => {
     setRate(plan.ratePerStudent.toString());
     setCurrency(plan.currency);
+    setPlanType(plan.planType || 'per_student');
     setCadence(plan.cadence);
     setEditingPlan(plan.id);
     // Scroll to billing plan section
@@ -61,7 +69,9 @@ export default function Billing() {
     setEditingPlan(null);
     setRate('500');
     setCurrency('MWK');
+    setPlanType('per_student');
     setCadence('per_term');
+    setPackageRates({ normal: '120', silver: '200', golden: '300' });
   };
   const [initialLoading, setInitialLoading] = useState(true);
 
@@ -126,6 +136,23 @@ export default function Billing() {
     }
   };
 
+  const loadPackageRates = async () => {
+    try {
+      const path = selectedSchoolId
+        ? `/school-packages/schools/${encodeURIComponent(selectedSchoolId)}`
+        : '/school-packages/catalog';
+      const data = await authed(path);
+      const pricing = data?.pricing || {};
+      setPackageRates({
+        normal: String(pricing.normal ?? 120),
+        silver: String(pricing.silver ?? 200),
+        golden: String(pricing.golden ?? 300),
+      });
+    } catch (error) {
+      console.error('Failed to load package rates:', error);
+    }
+  };
+
   const loadInvoices = async () => {
     try {
       const qp = selectedSchoolId ? `?schoolId=${encodeURIComponent(selectedSchoolId)}` : '';
@@ -154,6 +181,7 @@ export default function Billing() {
       try {
         await loadInvoices(); 
         await loadPlans();
+        await loadPackageRates();
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -166,7 +194,20 @@ export default function Billing() {
   const updatePlan = async () => {
     setLoadingPlan(true);
     try {
-      const body: any = { ratePerStudent: Number(rate), currency, cadence };
+      const body: any = {
+        planType,
+        currency,
+        cadence,
+      };
+      if (planType === 'per_student') {
+        body.ratePerStudent = Number(rate);
+      } else {
+        body.packagePricing = {
+          normal: Number(packageRates.normal),
+          silver: Number(packageRates.silver),
+          golden: Number(packageRates.golden),
+        };
+      }
       if (isSuperAdmin && selectedSchoolId) body.schoolId = selectedSchoolId;
       await authed('/billing/plans/set', {
         method: 'POST',
@@ -229,12 +270,26 @@ export default function Billing() {
     try {
       const body: any = {};
       if (isSuperAdmin && selectedSchoolId) body.schoolId = selectedSchoolId;
-      if (termId) body.termId = termId;
-      if (academicCalendarId) body.academicCalendarId = academicCalendarId;
-      
-      if (!termId && !academicCalendarId) {
-        alert('Please select either a term or academic calendar');
-        return;
+      if (invoiceScope === 'monthly') {
+        if (!billingMonth) {
+          alert('Please select a month');
+          return;
+        }
+        body.billingMonth = billingMonth;
+      }
+      if (invoiceScope === 'term') {
+        if (!termId) {
+          alert('Please select a term');
+          return;
+        }
+        body.termId = termId;
+      }
+      if (invoiceScope === 'academic_calendar') {
+        if (!academicCalendarId) {
+          alert('Please select an academic calendar');
+          return;
+        }
+        body.academicCalendarId = academicCalendarId;
       }
 
       await authed('/billing/invoices/generate', {
@@ -246,6 +301,7 @@ export default function Billing() {
       await loadInvoices();
       setTermId('');
       setAcademicCalendarId('');
+      setBillingMonth('');
     } catch (error) {
       console.error('Failed to generate invoice:', error);
       alert('Failed to generate invoice: ' + (error as Error).message);
@@ -347,17 +403,65 @@ export default function Billing() {
           <CardContent>
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="rate" className="text-sm font-medium">Rate per Student</Label>
-                <Input
-                  id="rate"
-                  type="number"
-                  step="0.01"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  placeholder="500.00"
-                  className="w-full"
-                />
+                <Label htmlFor="plan-type" className="text-sm font-medium">Billing Model</Label>
+                <Select value={planType} onValueChange={(v: 'per_student' | 'package') => setPlanType(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="per_student">Per Student</SelectItem>
+                    <SelectItem value="package">By Package (Normal/Silver/Golden)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {planType === 'per_student' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="rate" className="text-sm font-medium">Rate per Student</Label>
+                  <Input
+                    id="rate"
+                    type="number"
+                    step="0.01"
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
+                    placeholder="500.00"
+                    className="w-full"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="normal-rate" className="text-sm font-medium">Normal Package Amount</Label>
+                    <Input
+                      id="normal-rate"
+                      type="number"
+                      step="0.01"
+                      value={packageRates.normal}
+                      onChange={(e) => setPackageRates((prev) => ({ ...prev, normal: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="silver-rate" className="text-sm font-medium">Silver Package Amount</Label>
+                    <Input
+                      id="silver-rate"
+                      type="number"
+                      step="0.01"
+                      value={packageRates.silver}
+                      onChange={(e) => setPackageRates((prev) => ({ ...prev, silver: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="golden-rate" className="text-sm font-medium">Golden Package Amount</Label>
+                    <Input
+                      id="golden-rate"
+                      type="number"
+                      step="0.01"
+                      value={packageRates.golden}
+                      onChange={(e) => setPackageRates((prev) => ({ ...prev, golden: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -375,11 +479,12 @@ export default function Billing() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="cadence" className="text-sm font-medium">Billing Frequency</Label>
-                  <Select value={cadence} onValueChange={(v: 'per_term' | 'per_academic_year') => setCadence(v)}>
+                  <Select value={cadence} onValueChange={(v: 'monthly' | 'per_term' | 'per_academic_year') => setCadence(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
                       <SelectItem value="per_term">Per Term</SelectItem>
                       <SelectItem value="per_academic_year">Per Academic Year</SelectItem>
                     </SelectContent>
@@ -410,38 +515,80 @@ export default function Billing() {
               <CardContent>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="term-select" className="text-sm font-medium">Select Term (optional)</Label>
-                    <Select value={termId} onValueChange={setTermId} disabled={!academicCalendarId}>
-                      <SelectTrigger className="w-full" aria-disabled={!academicCalendarId}>
-                        <SelectValue placeholder="Select a term" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[...new Map(terms.map(t => [t.termNumber ?? t.term, t])).values()].map((term: any) => (
-                          <SelectItem key={term.id} value={term.id}>
-                            {term.term || `Term ${term.termNumber || 'Unknown'}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="calendar-select" className="text-sm font-medium">Select Academic Calendar (optional)</Label>
-                    <Select value={academicCalendarId} onValueChange={setAcademicCalendarId}>
+                    <Label htmlFor="invoice-scope" className="text-sm font-medium">Invoice Scope</Label>
+                    <Select value={invoiceScope} onValueChange={(v: InvoiceScope) => {
+                      setInvoiceScope(v);
+                      setTermId('');
+                      setAcademicCalendarId('');
+                      setBillingMonth('');
+                    }}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select an academic calendar" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {calendars.map((calendar) => (
-                          <SelectItem key={calendar.id} value={calendar.id}>
-                            {calendar.term}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="term">Per Term</SelectItem>
+                        <SelectItem value="academic_calendar">Academic Calendar</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {invoiceScope === 'monthly' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="billing-month" className="text-sm font-medium">Select Month</Label>
+                      <Input
+                        id="billing-month"
+                        type="month"
+                        value={billingMonth}
+                        onChange={(e) => setBillingMonth(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {invoiceScope === 'term' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="term-select" className="text-sm font-medium">Select Term</Label>
+                      <Select value={termId} onValueChange={setTermId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a term" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[...new Map(terms.map(t => [t.termNumber ?? t.term, t])).values()].map((term: any) => (
+                            <SelectItem key={term.id} value={term.id}>
+                              {term.term || `Term ${term.termNumber || 'Unknown'}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {invoiceScope === 'academic_calendar' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="calendar-select" className="text-sm font-medium">Select Academic Calendar</Label>
+                      <Select value={academicCalendarId} onValueChange={setAcademicCalendarId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select an academic calendar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {calendars.map((calendar) => (
+                            <SelectItem key={calendar.id} value={calendar.id}>
+                              {calendar.term}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <Button 
                     onClick={generateInvoice} 
-                    disabled={loadingGenerate || (!termId && !academicCalendarId)} 
+                    disabled={
+                      loadingGenerate ||
+                      (invoiceScope === 'monthly' && !billingMonth) ||
+                      (invoiceScope === 'term' && !termId) ||
+                      (invoiceScope === 'academic_calendar' && !academicCalendarId)
+                    }
                     className="w-full"
                   >
                     {loadingGenerate ? 'Generating...' : 'Generate Invoice'}
@@ -479,7 +626,10 @@ export default function Billing() {
                   <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <span className="font-semibold text-lg">{plan.currency} {plan.ratePerStudent}</span>
+                        <span className="font-semibold text-lg">
+                          {plan.planType === 'package' ? `${plan.currency} Package` : `${plan.currency} ${plan.ratePerStudent}`}
+                        </span>
+                        <Badge variant="outline">{(plan.planType || 'per_student').replace('_', ' ')}</Badge>
                         <Badge variant={plan.cadence === 'per_term' ? 'default' : 'secondary'}>
                           {plan.cadence.replace('_', ' ')}
                         </Badge>
@@ -683,7 +833,10 @@ export default function Billing() {
                           <div key={plan.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                             <div className="flex-1">
                               <div className="flex items-center gap-3">
-                                <span className="font-semibold text-lg">{plan.currency} {plan.ratePerStudent}</span>
+                                <span className="font-semibold text-lg">
+                                  {plan.planType === 'package' ? `${plan.currency} Package` : `${plan.currency} ${plan.ratePerStudent}`}
+                                </span>
+                                <Badge variant="outline">{(plan.planType || 'per_student').replace('_', ' ')}</Badge>
                                 <Badge variant={plan.cadence === 'per_term' ? 'default' : 'secondary'}>
                                   {plan.cadence.replace('_', ' ')}
                                 </Badge>
