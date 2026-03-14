@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Wallet,
   Bell,
+  Layers,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -44,6 +45,7 @@ const sidebarSections: SidebarSection[] = [
       { label: "Schools", icon: School, href: "/schools" },
       { label: "Users", icon: Users, href: "/users" },
       { label: "Billing Management", icon: Wallet, href: "/billing-management" },
+      { label: "Module Management", icon: Layers, href: "/module-management" },
     ],
   },
   {

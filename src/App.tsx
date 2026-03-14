@@ -15,6 +15,7 @@ import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import Billing from "./pages/Billing";
 import { BillingManagement } from "./pages/BillingManagement";
+import ModuleManagement from "./pages/ModuleManagement";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/system" element={<ProtectedRoute><System /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/module-management" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
