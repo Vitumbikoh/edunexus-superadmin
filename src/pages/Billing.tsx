@@ -18,6 +18,9 @@ type Invoice = {
   status: string;
   issueDate: string;
   currency: string;
+  termId?: string | null;
+  academicCalendarId?: string | null;
+  billingMonth?: string | null;
 };
 
 type BillingPlan = {
@@ -32,17 +35,31 @@ type BillingPlan = {
 };
 
 type InvoiceScope = 'monthly' | 'term' | 'academic_calendar';
+type PackageId = 'normal' | 'silver' | 'golden';
+type PackageRates = Record<PackageId, string>;
+type NumericPackageRates = Record<PackageId, number>;
+
+type SchoolPackageConfigSummary = {
+  assignedPackage: PackageId;
+  pricing: NumericPackageRates;
+};
+
+const PACKAGE_LABELS: Record<PackageId, string> = {
+  normal: 'Normal',
+  silver: 'Silver',
+  golden: 'Golden',
+};
 
 export default function Billing() {
   const [rate, setRate] = useState('500');
   const [currency, setCurrency] = useState('MWK');
   const [planType, setPlanType] = useState<'per_student' | 'package'>('per_student');
   const [cadence, setCadence] = useState<'monthly' | 'per_term' | 'per_academic_year'>('per_term');
-  const [packageRates, setPackageRates] = useState({ normal: '120', silver: '200', golden: '300' });
+  const [assignedPackage, setAssignedPackage] = useState<PackageId>('normal');
+  const [packageRates, setPackageRates] = useState<PackageRates>({ normal: '120', silver: '200', golden: '300' });
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [invoiceScope, setInvoiceScope] = useState<InvoiceScope>('term');
   const [billingMonth, setBillingMonth] = useState('');
   const [termId, setTermId] = useState('');
   const [academicCalendarId, setAcademicCalendarId] = useState('');
@@ -51,6 +68,7 @@ export default function Billing() {
   const [calendars, setCalendars] = useState<{ id: string; term: string }[]>([]);
   const [terms, setTerms] = useState<{ id: string; termNumber?: number; term?: string }[]>([]);
   const [plans, setPlans] = useState<BillingPlan[]>([]);
+  const [schoolPackageMap, setSchoolPackageMap] = useState<Record<string, SchoolPackageConfigSummary>>({});
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
 
@@ -71,6 +89,7 @@ export default function Billing() {
     setCurrency('MWK');
     setPlanType('per_student');
     setCadence('per_term');
+    setAssignedPackage('normal');
     setPackageRates({ normal: '120', silver: '200', golden: '300' });
   };
   const [initialLoading, setInitialLoading] = useState(true);
@@ -138,11 +157,17 @@ export default function Billing() {
 
   const loadPackageRates = async () => {
     try {
-      const path = selectedSchoolId
-        ? `/school-packages/schools/${encodeURIComponent(selectedSchoolId)}`
-        : '/school-packages/catalog';
+      const path = isSuperAdmin
+        ? (selectedSchoolId
+            ? `/school-packages/schools/${encodeURIComponent(selectedSchoolId)}`
+            : '/school-packages/catalog')
+        : '/school-packages/me';
       const data = await authed(path);
       const pricing = data?.pricing || {};
+      const pkg = data?.assignedPackage;
+      if (pkg === 'normal' || pkg === 'silver' || pkg === 'golden') {
+        setAssignedPackage(pkg);
+      }
       setPackageRates({
         normal: String(pricing.normal ?? 120),
         silver: String(pricing.silver ?? 200),
@@ -162,6 +187,47 @@ export default function Billing() {
       console.error('Failed to load invoices:', error);
       setInvoices([]);
     }
+  };
+
+  const loadSchoolPackageConfigsForPlans = async (targetPlans: BillingPlan[]) => {
+    if (!isSuperAdmin) return;
+    const schoolIds = Array.from(new Set(targetPlans.map((plan) => plan.schoolId).filter(Boolean)));
+    if (schoolIds.length === 0) {
+      setSchoolPackageMap({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      schoolIds.map(async (schoolId) => {
+        try {
+          const data = await authed(`/school-packages/schools/${encodeURIComponent(schoolId)}`);
+          const assignedPackage = data?.assignedPackage;
+          if (assignedPackage !== 'normal' && assignedPackage !== 'silver' && assignedPackage !== 'golden') {
+            return [schoolId, null] as const;
+          }
+          const pricing = data?.pricing || {};
+          return [
+            schoolId,
+            {
+              assignedPackage,
+              pricing: {
+                normal: Number(pricing.normal) || 0,
+                silver: Number(pricing.silver) || 0,
+                golden: Number(pricing.golden) || 0,
+              },
+            },
+          ] as const;
+        } catch (error) {
+          return [schoolId, null] as const;
+        }
+      }),
+    );
+
+    const next: Record<string, SchoolPackageConfigSummary> = {};
+    for (const [schoolId, config] of entries) {
+      if (config) next[schoolId] = config;
+    }
+    setSchoolPackageMap(next);
   };
 
   // Initial loads
@@ -190,6 +256,30 @@ export default function Billing() {
     };
     loadData();
   }, [selectedSchoolId]);
+
+  useEffect(() => {
+    if (!isSuperAdmin || plans.length === 0) return;
+    loadSchoolPackageConfigsForPlans(plans).catch(() => undefined);
+  }, [isSuperAdmin, plans]);
+
+  const schoolNameById = useMemo(() => {
+    return schools.reduce<Record<string, string>>((acc, school) => {
+      acc[school.id] = school.name;
+      return acc;
+    }, {});
+  }, [schools]);
+
+  const formatPlanAmount = (plan: BillingPlan) => {
+    if (plan.planType === 'package') {
+      const schoolPackage = schoolPackageMap[plan.schoolId];
+      if (schoolPackage) {
+        const packageAmount = schoolPackage.pricing[schoolPackage.assignedPackage] || 0;
+        return `${plan.currency} ${packageAmount.toFixed(2)}`;
+      }
+      return `${plan.currency} Package`;
+    }
+    return `${plan.currency} ${Number(plan.ratePerStudent || 0).toFixed(2)}`;
+  };
 
   const updatePlan = async () => {
     setLoadingPlan(true);
@@ -265,26 +355,82 @@ export default function Billing() {
     reloadTerms();
   }, [selectedSchoolId, academicCalendarId]);
 
+  const activePlan = useMemo(() => {
+    if (plans.length === 0) return null;
+    return plans.find((p) => p.isActive) || plans[0];
+  }, [plans]);
+
+  const derivedInvoiceScope: InvoiceScope = useMemo(() => {
+    const selectedCadence = activePlan?.cadence || cadence;
+    if (selectedCadence === 'monthly') return 'monthly';
+    if (selectedCadence === 'per_term') return 'term';
+    return 'academic_calendar';
+  }, [activePlan, cadence]);
+
+  const payableTerms = useMemo(() => {
+    const paidTermIds = new Set(
+      invoices
+        .filter((invoice) => invoice.status === 'paid' && invoice.termId)
+        .map((invoice) => String(invoice.termId)),
+    );
+    return terms.filter((term) => !paidTermIds.has(String(term.id)));
+  }, [terms, invoices]);
+
+  const payableCalendars = useMemo(() => {
+    const paidCalendarIds = new Set(
+      invoices
+        .filter((invoice) => invoice.status === 'paid' && invoice.academicCalendarId)
+        .map((invoice) => String(invoice.academicCalendarId)),
+    );
+    return calendars.filter((calendar) => !paidCalendarIds.has(String(calendar.id)));
+  }, [calendars, invoices]);
+
+  useEffect(() => {
+    if (derivedInvoiceScope !== 'term') {
+      setTermId('');
+      return;
+    }
+    if (termId && !payableTerms.some((term) => term.id === termId)) {
+      setTermId('');
+    }
+  }, [derivedInvoiceScope, payableTerms, termId]);
+
+  useEffect(() => {
+    if (derivedInvoiceScope !== 'academic_calendar') {
+      setAcademicCalendarId('');
+      return;
+    }
+    if (academicCalendarId && !payableCalendars.some((calendar) => calendar.id === academicCalendarId)) {
+      setAcademicCalendarId('');
+    }
+  }, [derivedInvoiceScope, payableCalendars, academicCalendarId]);
+
+  useEffect(() => {
+    if (derivedInvoiceScope !== 'monthly') {
+      setBillingMonth('');
+    }
+  }, [derivedInvoiceScope]);
+
   const generateInvoice = async () => {
     setLoadingGenerate(true);
     try {
       const body: any = {};
       if (isSuperAdmin && selectedSchoolId) body.schoolId = selectedSchoolId;
-      if (invoiceScope === 'monthly') {
+      if (derivedInvoiceScope === 'monthly') {
         if (!billingMonth) {
           alert('Please select a month');
           return;
         }
         body.billingMonth = billingMonth;
       }
-      if (invoiceScope === 'term') {
+      if (derivedInvoiceScope === 'term') {
         if (!termId) {
           alert('Please select a term');
           return;
         }
         body.termId = termId;
       }
-      if (invoiceScope === 'academic_calendar') {
+      if (derivedInvoiceScope === 'academic_calendar') {
         if (!academicCalendarId) {
           alert('Please select an academic calendar');
           return;
@@ -429,37 +575,23 @@ export default function Billing() {
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="normal-rate" className="text-sm font-medium">Normal Package Amount</Label>
-                    <Input
-                      id="normal-rate"
-                      type="number"
-                      step="0.01"
-                      value={packageRates.normal}
-                      onChange={(e) => setPackageRates((prev) => ({ ...prev, normal: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="silver-rate" className="text-sm font-medium">Silver Package Amount</Label>
-                    <Input
-                      id="silver-rate"
-                      type="number"
-                      step="0.01"
-                      value={packageRates.silver}
-                      onChange={(e) => setPackageRates((prev) => ({ ...prev, silver: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="golden-rate" className="text-sm font-medium">Golden Package Amount</Label>
-                    <Input
-                      id="golden-rate"
-                      type="number"
-                      step="0.01"
-                      value={packageRates.golden}
-                      onChange={(e) => setPackageRates((prev) => ({ ...prev, golden: e.target.value }))}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="assigned-package-rate" className="text-sm font-medium">
+                    {PACKAGE_LABELS[assignedPackage]} Package Amount
+                  </Label>
+                  <Input
+                    id="assigned-package-rate"
+                    type="number"
+                    step="0.01"
+                    value={packageRates[assignedPackage]}
+                    onChange={(e) => setPackageRates((prev) => ({
+                      ...prev,
+                      [assignedPackage]: e.target.value,
+                    }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Invoice amount will use the school's assigned package: {PACKAGE_LABELS[assignedPackage]}.
+                  </p>
                 </div>
               )}
               
@@ -516,24 +648,17 @@ export default function Billing() {
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="invoice-scope" className="text-sm font-medium">Invoice Scope</Label>
-                    <Select value={invoiceScope} onValueChange={(v: InvoiceScope) => {
-                      setInvoiceScope(v);
-                      setTermId('');
-                      setAcademicCalendarId('');
-                      setBillingMonth('');
-                    }}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Monthly</SelectItem>
-                        <SelectItem value="term">Per Term</SelectItem>
-                        <SelectItem value="academic_calendar">Academic Calendar</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div id="invoice-scope" className="w-full rounded-md border px-3 py-2 text-sm bg-muted/40">
+                      {derivedInvoiceScope === 'monthly' && 'Monthly'}
+                      {derivedInvoiceScope === 'term' && 'Per Term'}
+                      {derivedInvoiceScope === 'academic_calendar' && 'Per Academic Year'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Invoice scope is controlled by Billing Frequency in the active plan.
+                    </p>
                   </div>
 
-                  {invoiceScope === 'monthly' && (
+                  {derivedInvoiceScope === 'monthly' && (
                     <div className="space-y-2">
                       <Label htmlFor="billing-month" className="text-sm font-medium">Select Month</Label>
                       <Input
@@ -545,39 +670,45 @@ export default function Billing() {
                     </div>
                   )}
 
-                  {invoiceScope === 'term' && (
+                  {derivedInvoiceScope === 'term' && (
                     <div className="space-y-2">
-                      <Label htmlFor="term-select" className="text-sm font-medium">Select Term</Label>
+                      <Label htmlFor="term-select" className="text-sm font-medium">Select Unpaid Term</Label>
                       <Select value={termId} onValueChange={setTermId}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a term" />
+                          <SelectValue placeholder="Select an unpaid term" />
                         </SelectTrigger>
                         <SelectContent>
-                          {[...new Map(terms.map(t => [t.termNumber ?? t.term, t])).values()].map((term: any) => (
+                          {[...new Map(payableTerms.map(t => [t.termNumber ?? t.term, t])).values()].map((term: any) => (
                             <SelectItem key={term.id} value={term.id}>
                               {term.term || `Term ${term.termNumber || 'Unknown'}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {payableTerms.length === 0 && (
+                        <p className="text-xs text-muted-foreground">All terms are fully paid.</p>
+                      )}
                     </div>
                   )}
 
-                  {invoiceScope === 'academic_calendar' && (
+                  {derivedInvoiceScope === 'academic_calendar' && (
                     <div className="space-y-2">
-                      <Label htmlFor="calendar-select" className="text-sm font-medium">Select Academic Calendar</Label>
+                      <Label htmlFor="calendar-select" className="text-sm font-medium">Select Unpaid Academic Calendar</Label>
                       <Select value={academicCalendarId} onValueChange={setAcademicCalendarId}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select an academic calendar" />
+                          <SelectValue placeholder="Select an unpaid academic calendar" />
                         </SelectTrigger>
                         <SelectContent>
-                          {calendars.map((calendar) => (
+                          {payableCalendars.map((calendar) => (
                             <SelectItem key={calendar.id} value={calendar.id}>
                               {calendar.term}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {payableCalendars.length === 0 && (
+                        <p className="text-xs text-muted-foreground">All academic years are fully paid.</p>
+                      )}
                     </div>
                   )}
 
@@ -585,9 +716,9 @@ export default function Billing() {
                     onClick={generateInvoice} 
                     disabled={
                       loadingGenerate ||
-                      (invoiceScope === 'monthly' && !billingMonth) ||
-                      (invoiceScope === 'term' && !termId) ||
-                      (invoiceScope === 'academic_calendar' && !academicCalendarId)
+                      (derivedInvoiceScope === 'monthly' && !billingMonth) ||
+                      (derivedInvoiceScope === 'term' && !termId) ||
+                      (derivedInvoiceScope === 'academic_calendar' && !academicCalendarId)
                     }
                     className="w-full"
                   >
@@ -627,7 +758,7 @@ export default function Billing() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-lg">
-                          {plan.planType === 'package' ? `${plan.currency} Package` : `${plan.currency} ${plan.ratePerStudent}`}
+                          {formatPlanAmount(plan)}
                         </span>
                         <Badge variant="outline">{(plan.planType || 'per_student').replace('_', ' ')}</Badge>
                         <Badge variant={plan.cadence === 'per_term' ? 'default' : 'secondary'}>
@@ -787,31 +918,6 @@ export default function Billing() {
         {/* If super admin with no school selected, show all schools data */}
         {isSuperAdmin && !selectedSchoolId && (
           <>
-            {/* School Selection */}
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold">School Selection</CardTitle>
-                <CardDescription>Select a school to manage its billing</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Label htmlFor="school-select">Select School</Label>
-                  <Select value={selectedSchoolId || ''} onValueChange={setSelectedSchoolId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a school to manage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schools.map((school) => (
-                        <SelectItem key={school.id} value={school.id}>
-                          {school.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* All Schools Billing Overview */}
             <Card className="w-full">
               <CardHeader>
@@ -834,13 +940,16 @@ export default function Billing() {
                             <div className="flex-1">
                               <div className="flex items-center gap-3">
                                 <span className="font-semibold text-lg">
-                                  {plan.planType === 'package' ? `${plan.currency} Package` : `${plan.currency} ${plan.ratePerStudent}`}
+                                  {formatPlanAmount(plan)}
                                 </span>
                                 <Badge variant="outline">{(plan.planType || 'per_student').replace('_', ' ')}</Badge>
                                 <Badge variant={plan.cadence === 'per_term' ? 'default' : 'secondary'}>
                                   {plan.cadence.replace('_', ' ')}
                                 </Badge>
                               </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                School: {schoolNameById[plan.schoolId] || plan.schoolId}
+                              </p>
                               <p className="text-sm text-muted-foreground mt-1">
                                 Effective from {plan.effectiveFrom ? new Date(plan.effectiveFrom).toLocaleDateString() : 'Unknown'}
                               </p>

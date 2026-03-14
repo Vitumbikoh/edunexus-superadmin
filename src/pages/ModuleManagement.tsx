@@ -21,15 +21,18 @@ type School = {
 
 type PackageId = "normal" | "silver" | "golden";
 
+type RoleKey = "admin" | "teacher" | "student" | "finance";
+
+type PackageRoleAccess = Record<RoleKey, string>;
+
 type PackageDefinition = {
   id: PackageId;
   name: string;
   description: string;
   modules: string[];
+  roleAccess: PackageRoleAccess;
   price: number;
 };
-
-type RoleKey = "admin" | "teacher" | "student" | "finance";
 
 const normalModules = [
   "Students",
@@ -41,38 +44,7 @@ const normalModules = [
   "Notices & Messages",
 ];
 
-const defaultPackages: PackageDefinition[] = [
-  {
-    id: "normal",
-    name: "Normal Package",
-    description: "Everything except Finance and Library.",
-    modules: normalModules,
-    price: 120,
-  },
-  {
-    id: "silver",
-    name: "Silver Package",
-    description: "Normal Package plus Finance.",
-    modules: [...normalModules, "Finance"],
-    price: 200,
-  },
-  {
-    id: "golden",
-    name: "Golden Package",
-    description: "Silver Package plus Library.",
-    modules: [...normalModules, "Finance", "Library"],
-    price: 300,
-  },
-];
-
-const roleLabels: Record<RoleKey, string> = {
-  admin: "Admin",
-  teacher: "Teacher",
-  student: "Student",
-  finance: "Finance",
-};
-
-const packageRoleAccess: Record<PackageId, Record<RoleKey, string>> = {
+const fallbackRoleAccess: Record<PackageId, PackageRoleAccess> = {
   normal: {
     admin: "All normal modules; no Finance and no Library.",
     teacher: "Full teaching modules and reports.",
@@ -93,6 +65,40 @@ const packageRoleAccess: Record<PackageId, Record<RoleKey, string>> = {
   },
 };
 
+const defaultPackages: PackageDefinition[] = [
+  {
+    id: "normal",
+    name: "Normal Package",
+    description: "Everything except Finance and Library.",
+    modules: normalModules,
+    roleAccess: fallbackRoleAccess.normal,
+    price: 120,
+  },
+  {
+    id: "silver",
+    name: "Silver Package",
+    description: "Normal Package plus Finance.",
+    modules: [...normalModules, "Finance"],
+    roleAccess: fallbackRoleAccess.silver,
+    price: 200,
+  },
+  {
+    id: "golden",
+    name: "Golden Package",
+    description: "Silver Package plus Library.",
+    modules: [...normalModules, "Finance", "Library"],
+    roleAccess: fallbackRoleAccess.golden,
+    price: 300,
+  },
+];
+
+const roleLabels: Record<RoleKey, string> = {
+  admin: "Admin",
+  teacher: "Teacher",
+  student: "Student",
+  finance: "Finance",
+};
+
 function formatCurrency(value: number) {
   return `MK ${new Intl.NumberFormat("en-MW", {
     maximumFractionDigits: 0,
@@ -108,6 +114,7 @@ export default function ModuleManagement() {
     silver: 200,
     golden: 300,
   });
+  const [packageCatalog, setPackageCatalog] = useState<PackageDefinition[]>(defaultPackages);
   const [schoolAssignments, setSchoolAssignments] = useState<Record<string, PackageId>>({});
 
   const [showPriceDialog, setShowPriceDialog] = useState(false);
@@ -124,8 +131,8 @@ export default function ModuleManagement() {
   );
 
   const packages = useMemo(
-    () => defaultPackages.map((pkg) => ({ ...pkg, price: packagePrices[pkg.id] })),
-    [packagePrices]
+    () => packageCatalog.map((pkg) => ({ ...pkg, price: packagePrices[pkg.id] ?? pkg.price })),
+    [packageCatalog, packagePrices]
   );
 
   const selectedSchoolPackage: PackageId = schoolAssignments[selectedSchoolId] || "normal";
@@ -195,6 +202,26 @@ export default function ModuleManagement() {
           golden: Number(data.pricing.golden) || 300,
         });
       }
+      if (Array.isArray(data?.packages)) {
+        const normalized = data.packages
+          .filter((pkg: any) => pkg?.id === 'normal' || pkg?.id === 'silver' || pkg?.id === 'golden')
+          .map((pkg: any) => ({
+            id: pkg.id as PackageId,
+            name: pkg.name || `${pkg.id} package`,
+            description: pkg.description || '',
+            modules: Array.isArray(pkg.modules) ? pkg.modules : [],
+            roleAccess: {
+              admin: pkg?.roleAccess?.admin || fallbackRoleAccess[pkg.id as PackageId].admin,
+              teacher: pkg?.roleAccess?.teacher || fallbackRoleAccess[pkg.id as PackageId].teacher,
+              student: pkg?.roleAccess?.student || fallbackRoleAccess[pkg.id as PackageId].student,
+              finance: pkg?.roleAccess?.finance || fallbackRoleAccess[pkg.id as PackageId].finance,
+            },
+            price: Number(pkg.price) || 0,
+          }));
+        if (normalized.length > 0) {
+          setPackageCatalog(normalized);
+        }
+      }
     } catch (err: any) {
       toast({
         title: "Warning",
@@ -223,6 +250,26 @@ export default function ModuleManagement() {
           silver: Number(data.pricing.silver) || 200,
           golden: Number(data.pricing.golden) || 300,
         });
+      }
+      if (Array.isArray(data?.packages)) {
+        const normalized = data.packages
+          .filter((pkg: any) => pkg?.id === 'normal' || pkg?.id === 'silver' || pkg?.id === 'golden')
+          .map((pkg: any) => ({
+            id: pkg.id as PackageId,
+            name: pkg.name || `${pkg.id} package`,
+            description: pkg.description || '',
+            modules: Array.isArray(pkg.modules) ? pkg.modules : [],
+            roleAccess: {
+              admin: pkg?.roleAccess?.admin || fallbackRoleAccess[pkg.id as PackageId].admin,
+              teacher: pkg?.roleAccess?.teacher || fallbackRoleAccess[pkg.id as PackageId].teacher,
+              student: pkg?.roleAccess?.student || fallbackRoleAccess[pkg.id as PackageId].student,
+              finance: pkg?.roleAccess?.finance || fallbackRoleAccess[pkg.id as PackageId].finance,
+            },
+            price: Number(pkg.price) || packagePrices[pkg.id as PackageId] || 0,
+          }));
+        if (normalized.length > 0) {
+          setPackageCatalog(normalized);
+        }
       }
     } catch (err: any) {
       toast({
@@ -407,7 +454,7 @@ export default function ModuleManagement() {
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               {roleLabels[role]}
                             </p>
-                            <p className="text-sm">{packageRoleAccess[selectedSchoolPackageDetails.id][role]}</p>
+                            <p className="text-sm">{selectedSchoolPackageDetails.roleAccess[role]}</p>
                           </div>
                         ))}
                       </div>
@@ -459,7 +506,7 @@ export default function ModuleManagement() {
                       <div className="space-y-1 max-w-sm">
                         {(Object.keys(roleLabels) as RoleKey[]).map((role) => (
                           <p key={role} className="text-xs">
-                            <span className="font-semibold">{roleLabels[role]}:</span> {packageRoleAccess[pkg.id][role]}
+                            <span className="font-semibold">{roleLabels[role]}:</span> {pkg.roleAccess[role]}
                           </p>
                         ))}
                       </div>
