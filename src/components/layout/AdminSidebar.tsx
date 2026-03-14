@@ -14,9 +14,6 @@ import {
   ChevronRight,
   Wallet,
   Bell,
-  MessageSquare,
-  CalendarDays,
-  BookOpen,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -53,7 +50,6 @@ const sidebarSections: SidebarSection[] = [
     title: "Communications",
     items: [
       { label: "Notices", icon: Bell, href: "/notices" },
-      { label: "Messages", icon: MessageSquare, href: "/messages" },
     ],
   },
   {
@@ -63,11 +59,6 @@ const sidebarSections: SidebarSection[] = [
       { label: "Settings", icon: Settings, href: "/settings" },
     ],
   },
-];
-
-const bottomItems: SidebarItem[] = [
-  { label: "Academic Calendar", icon: CalendarDays, href: "/academic-calendar" },
-  { label: "Term", icon: BookOpen, href: "/term" },
 ];
 
 export function AdminSidebar({ className }: AdminSidebarProps) {
@@ -160,18 +151,6 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
           ))}
         </nav>
       </ScrollArea>
-
-      {/* Bottom pinned — Academic Calendar & Term (all roles) */}
-      <div className="border-t px-3 py-3">
-        {!collapsed && (
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Academic
-          </p>
-        )}
-        <div className="space-y-1">
-          {bottomItems.map(renderItem)}
-        </div>
-      </div>
 
       {/* Footer */}
       {!collapsed && (

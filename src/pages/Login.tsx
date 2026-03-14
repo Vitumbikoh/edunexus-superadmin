@@ -47,9 +47,9 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
-            <img src="/polymilesicon.png" alt="edunexus Admin Logo" className="w-16 h-16 object-contain" />
+            <img src="/polymilesicon.png" alt="EduNexus Admin Logo" className="w-16 h-16 object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold">edunexus Admin</CardTitle>
+          <CardTitle className="text-2xl font-bold">EduNexus Admin</CardTitle>
           <CardDescription>Sign in to your admin account</CardDescription>
         </CardHeader>
         <CardContent>
