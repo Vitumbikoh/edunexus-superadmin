@@ -70,10 +70,25 @@ interface CreateSchoolRequest {
 
 interface CreateSchoolResponse {
   school: School;
-  adminCredentials: {
+  adminCredentials?: {
     username: string;
     email: string;
     password: string;
+  };
+  principalCredentials?: {
+    username: string;
+    email: string;
+    password: string;
+  };
+  admin?: {
+    username: string;
+    email: string;
+    tempPassword: string;
+  };
+  principal?: {
+    username: string;
+    email: string;
+    tempPassword: string;
   };
 }
 
@@ -272,14 +287,37 @@ const Schools = () => {
       // Log the response for debugging
       console.log('Create school response:', response);
       
-      // Check if adminCredentials exists in the response
-      if (response && response.adminCredentials) {
+      const adminCredentials = response?.adminCredentials || (response?.admin
+        ? {
+            username: response.admin.username,
+            email: response.admin.email,
+            password: response.admin.tempPassword,
+          }
+        : null);
+      const principalCredentials = response?.principalCredentials || (response?.principal
+        ? {
+            username: response.principal.username,
+            email: response.principal.email,
+            password: response.principal.tempPassword,
+          }
+        : null);
+
+      if (response && adminCredentials) {
+        const principalDetails = principalCredentials
+          ? `
+
+Principal credentials:
+Username: ${principalCredentials.username}
+Email: ${principalCredentials.email}
+Password: ${principalCredentials.password}`
+          : '';
+
         toast({
           title: "School Created",
           description: `School created successfully. Admin credentials:
-          Username: ${response.adminCredentials.username}
-          Email: ${response.adminCredentials.email}
-          Password: ${response.adminCredentials.password}`,
+          Username: ${adminCredentials.username}
+          Email: ${adminCredentials.email}
+          Password: ${adminCredentials.password}${principalDetails}`,
         });
       } else {
         // Fallback if adminCredentials is not in the expected format
