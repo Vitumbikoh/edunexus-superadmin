@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, MoreVertical, Users, BookOpen, TrendingUp, Eye, Copy, RotateCcw, CreditCard, AlertTriangle, Ban, School, Calendar, GraduationCap, CheckCircle } from "lucide-react";
+import { Search, Plus, MoreVertical, Users, BookOpen, TrendingUp, Eye, Copy, RotateCcw, CreditCard, AlertTriangle, Ban, School, Calendar, GraduationCap, CheckCircle, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +109,9 @@ const Schools = () => {
   const [deactivateSchoolData, setDeactivateSchoolData] = useState<{id: string, name: string} | null>(null);
   const [deactivateReason, setDeactivateReason] = useState("");
   const [deactivateDate, setDeactivateDate] = useState("");
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [deleteSchoolData, setDeleteSchoolData] = useState<{id: string, name: string, code: string} | null>(null);
+  const [deleteCodeInput, setDeleteCodeInput] = useState("");
   const { toast } = useToast();
 
   // API Helper Functions
@@ -234,15 +237,15 @@ const Schools = () => {
     });
   };
 
-  const suspendSchoolAPI = async (id: string): Promise<void> => {
-    return apiCall(`/schools/${id}/suspend`, {
+  const activateSchoolAPI = async (id: string): Promise<void> => {
+    return apiCall(`/schools/${id}/activate`, {
       method: 'PATCH',
     });
   };
 
-  const activateSchoolAPI = async (id: string): Promise<void> => {
-    return apiCall(`/schools/${id}/activate`, {
-      method: 'PATCH',
+  const deleteSchoolAPI = async (id: string): Promise<void> => {
+    return apiCall(`/schools/${id}`, {
+      method: 'DELETE',
     });
   };
 
@@ -467,36 +470,7 @@ Password: ${principalCredentials.password}`
       return false;
     }
 
-    // 2) Try to find an orphaned 'Graduated' class without schoolId and assign it
-    const globalRes = await fetch(`${API_BASE}/classes`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (globalRes.ok) {
-      const globalText = await globalRes.text();
-      const globalClasses = globalText ? JSON.parse(globalText) : [];
-      const orphan = Array.isArray(globalClasses) ? globalClasses.find((c:any) => String(c?.name || '').toLowerCase() === 'graduated' && !c?.schoolId) : undefined;
-      if (orphan?.id) {
-        const updateRes = await fetch(`${API_BASE}/classes/${orphan.id}?schoolId=${encodeURIComponent(schoolId)}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'X-Tenant-ID': schoolId,
-          },
-          body: JSON.stringify({ schoolId, school_id: schoolId, numericalName: 999, description: orphan.description || 'Graduated class' }),
-        });
-        if (!updateRes.ok) {
-          const txt = await updateRes.text();
-          throw new Error(txt || `Failed to assign Graduated class to school: ${updateRes.status}`);
-        }
-        return true; // orphan fixed
-      }
-    }
-
-    // Create the "Graduated" class
+    // 2) Create the "Graduated" class strictly scoped to this school
     const createRes = await fetch(`${API_BASE}/classes?schoolId=${encodeURIComponent(schoolId)}`, {
       method: 'POST',
       headers: {
@@ -560,22 +534,48 @@ Password: ${principalCredentials.password}`
     return true;
   };
 
-  const handleSuspend = async (id: string) => {
-    if (!confirm('Are you sure you want to suspend this school?')) return;
+  const openDeletePopup = (school: Pick<School, 'id' | 'name' | 'code'>) => {
+    setDeleteSchoolData({ id: school.id, name: school.name, code: school.code });
+    setDeleteCodeInput("");
+    setShowDeletePopup(true);
+  };
+
+  const closeDeletePopup = () => {
+    setShowDeletePopup(false);
+    setDeleteSchoolData(null);
+    setDeleteCodeInput("");
+  };
+
+  const isDeleteCodeMatch = !!deleteSchoolData && deleteCodeInput.trim() === deleteSchoolData.code;
+
+  const handleDeleteSchool = async () => {
+    if (!deleteSchoolData) return;
+    if (!isDeleteCodeMatch) {
+      toast({
+        title: "Code mismatch",
+        description: "Type the exact school code to enable deletion.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      await suspendSchoolAPI(id);
+      await deleteSchoolAPI(deleteSchoolData.id);
       toast({
-        title: "Success",
-        description: 'School suspended successfully',
+        title: "School Deleted",
+        description: `${deleteSchoolData.name} and associated data were deleted successfully.`,
       });
+      closeDeletePopup();
       await fetchSchools(search, currentPage);
+      if (showCredentials) {
+        await fetchCredentials(search, currentPage);
+      }
     } catch (err: any) {
-      console.error('Suspend failed:', err);
+      console.error('Delete school failed:', err);
       toast({
         title: "Error",
-        description: err.message || 'Failed to suspend school',
+        description: err.message || 'Failed to delete school',
         variant: "destructive",
       });
     } finally {
@@ -1197,13 +1197,23 @@ Password: ${principalCredentials.password}`
                                     </DropdownMenuItem>
                                   )}
                                   
-                                  {/* Regular suspend/activate */}
-                                  <DropdownMenuItem 
-                                    onClick={() => isActive ? handleSuspend(school.id) : handleActivate(school.id)} 
-                                    className={isActive ? "text-destructive" : "text-green-600"}
-                                  >
-                                    {isActive ? "Suspend" : "Activate"}
-                                  </DropdownMenuItem>
+                                  {/* Replace suspend action with hard delete; keep activate for suspended schools */}
+                                  {isActive ? (
+                                    <DropdownMenuItem
+                                      onClick={() => openDeletePopup(school)}
+                                      className="text-destructive"
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete School
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={() => handleActivate(school.id)}
+                                      className="text-green-600"
+                                    >
+                                      Activate
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -1303,6 +1313,54 @@ Password: ${principalCredentials.password}`
                 disabled={loading || !deactivateReason.trim()}
               >
                 {loading ? "Deactivating..." : "Deactivate School"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete School Confirmation Popup */}
+        <Dialog open={showDeletePopup} onOpenChange={(open) => (!open ? closeDeletePopup() : setShowDeletePopup(true))}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle className="text-red-600">Delete School Permanently</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. All data with this school&apos;s `schoolId` will be deleted.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>School</Label>
+                <div className="rounded border p-3 text-sm">
+                  <div className="font-medium">{deleteSchoolData?.name}</div>
+                  <div className="text-muted-foreground">Code: <span className="font-mono">{deleteSchoolData?.code}</span></div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-school-code">Type school code to confirm deletion</Label>
+                <Input
+                  id="delete-school-code"
+                  placeholder="Enter exact school code"
+                  value={deleteCodeInput}
+                  onChange={(e) => setDeleteCodeInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Delete button is enabled only when the code matches exactly.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDeletePopup} disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSchool}
+                disabled={loading || !isDeleteCodeMatch}
+              >
+                {loading ? "Deleting..." : "Confirm Delete"}
               </Button>
             </DialogFooter>
           </DialogContent>
