@@ -1,40 +1,47 @@
 /**
  * Centralized API Configuration
  * 
- * This file contains the single source of truth for the API base URL.
- * All API calls throughout the application should import and use this configuration.
- * 
- * To change the backend URL, update the VITE_API_BASE_URL in your .env file:
- * VITE_API_BASE_URL=https://your-backend-url.com/api/v1
+ * All API calls should use this single source of truth.
+ * Set VITE_API_BASE_URL in your .env file.
+ * Example:
+ * VITE_API_BASE_URL=https://api.educnexus.tech/api/v1
  */
 
 /**
- * Get the API base URL from environment variables
- * Falls back to localhost development server if not set
+ * Get API base URL from environment variables
  */
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  
-  // Return environment URL if set, otherwise use localhost default
-  return envUrl || 'http://localhost:5000/api/v1';
+
+  if (!envUrl) {
+    // ❗ In production, we should NEVER silently fall back to localhost
+    if (import.meta.env.PROD) {
+      throw new Error(
+        'VITE_API_BASE_URL is not defined in production environment'
+      );
+    }
+
+    // Dev fallback only
+    return 'http://localhost:5000/api/v1';
+  }
+
+  return envUrl;
 };
 
 /**
- * The main API base URL - use this for all API calls
- * Example: `${API_BASE_URL}/students`
+ * Main API base URL
  */
 export const API_BASE_URL = getApiBaseUrl();
 
 /**
- * Get the base URL without the /api/v1 suffix
- * Useful for file uploads and other non-API endpoints
+ * Server base URL (without /api/v1)
  */
 export const getServerBaseUrl = (): string => {
   return API_BASE_URL.replace('/api/v1', '');
 };
 
 /**
- * API Configuration object for services
+ * API Configuration object
  */
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
